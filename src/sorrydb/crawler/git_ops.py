@@ -6,6 +6,8 @@ import tempfile
 import subprocess
 from datetime import datetime, timezone
 import logging
+import git.cmd
+import hashlib
 
 # Create a module-level logger
 logger = logging.getLogger(__name__)
@@ -130,4 +132,70 @@ def get_default_branch(repo_path: Path) -> str:
         capture_output=True,
         text=True
     )
-    return result.stdout.strip() 
+    return result.stdout.strip()
+
+def remote_heads(remote_url: str) -> list[dict]:
+    """Get all branch heads from a remote repository.
+    
+    Args:
+        remote_url: Git remote URL (HTTPS or SSH)
+        
+    Returns:
+        List of dicts, each containing:
+            - branch: name of the branch
+            - sha: SHA of the HEAD commit
+    """
+    try:
+        # Use git.cmd.Git for running git commands directly
+        logger.debug(f"Getting remote heads for {remote_url}")
+        git_cmd = git.cmd.Git()
+        logger.debug(f"Running git command: git ls-remote --heads {remote_url}")
+        output = git_cmd.ls_remote('--heads', remote_url)
+        
+        # Parse the output into a list of dicts
+        heads = []
+        for line in output.splitlines():
+            if not line.strip():
+                continue
+            
+            # Each line is of format: "<sha>\trefs/heads/<branch>"
+            sha, ref = line.split('\t')
+            branch = ref.replace('refs/heads/', '')
+            
+            heads.append({
+                'branch': branch,
+                'sha': sha
+            })
+        if len(heads) == 0:
+            logger.warning(f"No branches found for {remote_url}")
+        else:
+            logger.debug(f"Found {len(heads)} branches in {remote_url}")
+        return heads
+        
+    except Exception as e:
+        logger.error(f"Error getting remote heads for {remote_url}: {e}")
+        return [] 
+
+def remote_heads_hash(remote_url: str) -> str | None:
+    """Get a hash of the (sorted) set of unique branch heads in a remote repository.
+    
+    Args:
+        remote_url: Git remote URL (HTTPS or SSH)
+        
+    Returns:
+        First 12 characters of SHA-256 hash of sorted set of unique head SHAs, or None if error
+    """
+    try:
+        heads = remote_heads(remote_url)
+        if not heads:
+            return None
+        
+        # Extract unique SHAs and sort them
+        shas = sorted(set(head['sha'] for head in heads))
+        # Join them with a delimiter and hash
+        combined = '_'.join(shas)
+        return hashlib.sha256(combined.encode()).hexdigest()[:12]
+        
+    except Exception as e:
+        logger.error(f"Error computing sorted hash of remote heads for {remote_url}: {e}")
+        return None
