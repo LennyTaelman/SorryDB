@@ -1,0 +1,27 @@
+{
+  "goal": {
+    "type": "X : Type\ninst\u271d : TopologicalSpace X\n\u22a2 IsOpen Set.univ",
+    "hash": "503cbf170af1",
+    "parentType": "Prop"
+  },
+  "location": {
+    "startLine": 5,
+    "startColumn": 42,
+    "endLine": 5,
+    "endColumn": 47,
+    "file": "SorryClientTestRepoMath/WithImport.lean"
+  },
+  "blame": {
+    "commit": "df56fee69fa29f3fcd1d6ad873a84a06c2659b4d",
+    "author": "LennyTaelman",
+    "author_email": "lenny.taelman@gmail.com",
+    "date": "2025-02-25T16:49:40+01:00",
+    "summary": "add example requiring mathlib"
+  },
+  "metadata": {
+    "commit_time": "2025-02-25T16:49:40+01:00",
+    "remote_url": "https://github.com/austinletson/sorryClientTestRepoMath",
+    "sha": "df56fee69fa29f3fcd1d6ad873a84a06c2659b4d",
+    "branch": "HEAD"
+  }
+}
