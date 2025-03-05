@@ -3,7 +3,9 @@ import json
 from pathlib import Path
 import hashlib
 import logging
+from typing import Optional
 import uuid
+import tempfile
 from sorrydb.crawler.git_ops import get_git_blame_info, get_repo_metadata, prepare_repository
 from sorrydb.repro.repl_api import LeanRepl, get_goal_parent_type, setup_repl
 
@@ -236,7 +238,7 @@ def get_repo_lean_version(repo_path: Path) -> str:
 
 
 def prepare_and_process_lean_repo(repo_url: str, branch: str | None = None, 
-                  lean_data: Path | None = None, subdir: str | None = None):
+                  lean_data: Optional[Path] = None, subdir: str | None = None):
     """
     Comprehensive function that prepares a repository, builds a Lean project, 
     processes it to find sorries, and collects repository metadata.
@@ -244,18 +246,30 @@ def prepare_and_process_lean_repo(repo_url: str, branch: str | None = None,
     Args:
         repo_url: Git remote URL (HTTPS or SSH) of the repository to process
         branch: Optional branch to checkout (default: repository default branch)
-        lean_data: Path to the lean data directory (default: ./lean_data)
+        lean_data: Path to the lean data directory (default: create temporary directory)
         subdir: Optional subdirectory to restrict search to
         lean_version_tag: Optional Lean version tag to use for REPL
         
     Returns:
         dict: A dictionary containing repository metadata and sorries information
     """
-    # Set default lean_data directory if not provided
+    # Use a temporary directory by default if lean_data is not provided
     if lean_data is None:
-        lean_data = Path("lean_data")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            logger.info(f"Using temporary directory for lean data: {temp_dir}")
+            return _process_repo_with_lean_data(repo_url, branch, Path(temp_dir), subdir)
+    else:
+        # If lean_data is provided, make sure it exists
+        lean_data = Path(lean_data)
         lean_data.mkdir(exist_ok=True)
-    
+        logger.info(f"Using non-temporary directory for lean data: {lean_data}")
+        return _process_repo_with_lean_data(repo_url, branch, lean_data, subdir)
+
+def _process_repo_with_lean_data(repo_url: str, branch: str | None, 
+                               lean_data: Path, subdir: str | None = None):
+    """
+    Helper function that does the actual repository processing with a given lean_data directory.
+    """
     logger.info(f"Processing repository: {repo_url}")
     if branch:
         logger.info(f"Using branch: {branch}")
@@ -294,7 +308,7 @@ def prepare_and_process_lean_repo(repo_url: str, branch: str | None = None,
     return results
 
 
-def build_database(repo_list: list, lean_data: Path, output_path: str | Path):
+def build_database(repo_list: list, lean_data: Optional[Path], output_path: str | Path):
     """
     Build a SorryDatabase from multiple repositories.
     
@@ -309,10 +323,6 @@ def build_database(repo_list: list, lean_data: Path, output_path: str | Path):
     Returns:
         SorryDatabase: A database object containing all sorries from all repositories
     """
-    # Create lean data directory if it doesn't exist
-    lean_data_path = Path(lean_data)
-    lean_data_path.mkdir(exist_ok=True)
-    
     # Initialize empty list to store all sorries
     all_sorries = []
     
@@ -326,7 +336,7 @@ def build_database(repo_list: list, lean_data: Path, output_path: str | Path):
             repo_results = prepare_and_process_lean_repo(
                 repo_url=repo_url,
                 branch=branch,
-                lean_data=lean_data_path,
+                lean_data=lean_data,
                 subdir=subdir
             )
 

@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 import json
 import logging
+from typing import Optional
 
 from sorrydb.database.build_database import prepare_and_process_lean_repo
 
@@ -13,8 +14,8 @@ def main():
                        help='Git remote URL (HTTPS or SSH) of the repository to process')
     parser.add_argument('--branch', type=str,
                        help='Branch to process (default: repository default branch)')
-    parser.add_argument('--lean-data-dir', type=str, default='lean_data',
-                       help='Directory for repository checkouts (default: lean_data)')
+    parser.add_argument('--lean-data-dir', type=str, default="",
+                       help='Directory for repository checkouts and Lean data (default: create a temporary directory)')
     parser.add_argument('--dir', type=str,
                        help='Subdirectory to search for Lean files (default: entire repository)')
     # Add simple logging options
@@ -35,8 +36,10 @@ def main():
         log_kwargs['filename'] = args.log_file
     logging.basicConfig(**log_kwargs)
     
-    lean_data = Path(args.lean_data_dir)
-    lean_data.mkdir(exist_ok=True)
+    # Create lean data directory
+    lean_data: Optional[Path] = Path(args.lean_data_dir) if args.lean_data_dir != '' else None
+    if lean_data:
+        lean_data.mkdir(exist_ok=True)
     
     results = prepare_and_process_lean_repo(
         repo_url=args.repo_url,
