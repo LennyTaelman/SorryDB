@@ -144,13 +144,12 @@ def process_lean_file(relative_path: Path, repo_path: Path, repl_binary: Path) -
             
         return results
 
-def process_lean_repo(repo_path: Path, lean_data: Path, subdir: str | None = None, version_tag: str | None = None) -> list:
+def process_lean_repo(repo_path: Path, lean_data: Path, version_tag: str | None = None) -> list:
     """Process all Lean files in a repository using the REPL.
     
     Args:
         repo_path: Path to the repository root
         lean_data: Path to the lean data directory
-        subdir: Optional subdirectory to restrict search to
         
     Returns:
         List of sorries, each containing:
@@ -169,15 +168,7 @@ def process_lean_repo(repo_path: Path, lean_data: Path, subdir: str | None = Non
     repl_binary = setup_repl(lean_data, version_tag)
     
     # Build list of files to process
-    if subdir:
-        search_path = repo_path / subdir
-        if not search_path.exists():
-            logger.error(f"Subdirectory {subdir} does not exist")
-            raise Exception(f"Subdirectory {subdir} does not exist")
-        lean_files = [(f.relative_to(repo_path), f) for f in search_path.rglob("*.lean") 
-                      if ".lake" not in f.parts and should_process_file(f)]
-    else:
-        lean_files = [(f.relative_to(repo_path), f) for f in repo_path.rglob("*.lean") 
+    lean_files = [(f.relative_to(repo_path), f) for f in repo_path.rglob("*.lean") 
                       if ".lake" not in f.parts and should_process_file(f)]
     
     logger.info(f"Found {len(lean_files)} files containing potential sorries")
@@ -239,7 +230,7 @@ def get_repo_lean_version(repo_path: Path) -> str:
 
 
 def prepare_and_process_lean_repo(repo_url: str, branch: str | None = None, 
-                  lean_data: Optional[Path] = None, subdir: str | None = None):
+                  lean_data: Optional[Path] = None):
     """
     Comprehensive function that prepares a repository, builds a Lean project, 
     processes it to find sorries, and collects repository metadata.
@@ -248,7 +239,6 @@ def prepare_and_process_lean_repo(repo_url: str, branch: str | None = None,
         repo_url: Git remote URL (HTTPS or SSH) of the repository to process
         branch: Optional branch to checkout (default: repository default branch)
         lean_data: Path to the lean data directory (default: create temporary directory)
-        subdir: Optional subdirectory to restrict search to
         lean_version_tag: Optional Lean version tag to use for REPL
         
     Returns:
@@ -258,16 +248,15 @@ def prepare_and_process_lean_repo(repo_url: str, branch: str | None = None,
     if lean_data is None:
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"Using temporary directory for lean data: {temp_dir}")
-            return _process_repo_with_lean_data(repo_url, branch, Path(temp_dir), subdir)
+            return _process_repo_with_lean_data(repo_url, branch, Path(temp_dir))
     else:
         # If lean_data is provided, make sure it exists
         lean_data = Path(lean_data)
         lean_data.mkdir(exist_ok=True)
         logger.info(f"Using non-temporary directory for lean data: {lean_data}")
-        return _process_repo_with_lean_data(repo_url, branch, lean_data, subdir)
+        return _process_repo_with_lean_data(repo_url, branch, lean_data)
 
-def _process_repo_with_lean_data(repo_url: str, branch: str | None, 
-                               lean_data: Path, subdir: str | None = None):
+def _process_repo_with_lean_data(repo_url: str, branch: str | None, lean_data: Path):
     """
     Helper function that does the actual repository processing with a given lean_data directory.
     """
@@ -293,7 +282,7 @@ def _process_repo_with_lean_data(repo_url: str, branch: str | None,
         lean_version = None
     
     # Process Lean files to find sorries
-    sorries = process_lean_repo(checkout_path, lean_data, subdir, lean_version)
+    sorries = process_lean_repo(checkout_path, lean_data, lean_version)
     
     # Get repository metadata and add lean_version
     metadata = get_repo_metadata(checkout_path)
@@ -308,56 +297,6 @@ def _process_repo_with_lean_data(repo_url: str, branch: str | None,
     logger.info(f"Database build complete. Found {len(sorries)} sorries.")
     return results
 
-
-def build_database(repo_list: list, lean_data: Optional[Path], output_path: str | Path):
-    """
-    Build a SorryDatabase from multiple repositories.
-    
-    Args:
-        repo_list: List of repository dictionaries, each containing:
-            - remote: Git remote URL (HTTPS or SSH) of the repository to process
-            - branch: Optional branch to checkout (default: repository default branch)
-            - subdir: Optional subdirectory to restrict search to
-        lean_data: Path to the lean data directory
-        output_path: Path to save the database JSON file
-        
-    Returns:
-        SorryDatabase: A database object containing all sorries from all repositories
-    """
-    # Initialize empty list to store all sorries
-    all_sorries = []
-    
-    # Process each repository and add a record to the db for each sorry
-    for repo_info in repo_list:
-        repo_url = repo_info["remote"]
-        branch = repo_info.get("branch")
-        subdir = repo_info.get("subdir")
-        
-        try:
-            repo_results = prepare_and_process_lean_repo(
-                repo_url=repo_url,
-                branch=branch,
-                lean_data=lean_data,
-                subdir=subdir
-            )
-
-            # Build database record for each sorry
-            for sorry in repo_results["sorries"]:
-                # Add repository metadata to each sorry
-                sorry["metadata"] = repo_results["metadata"].copy()
-                # Generate a unique UUID for each sorry
-                sorry["uuid"] = str(uuid.uuid4())
-
-                all_sorries.append(sorry)
-                
-        except Exception as e:
-            logger.error(f"Error processing repository {repo_url}: {e}")
-            logger.exception(e)
-            # Continue with next repository
-            continue
-
-    with open(output_path, 'w') as f:
-        json.dump(all_sorries, f, indent=2)
     
 def init_database(repo_list: list, starting_date: datetime.datetime, database_file: Path):
     """
