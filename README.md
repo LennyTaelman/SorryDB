@@ -34,3 +34,8 @@ This provides an initialised database `mock_db.json` which does not yet contain
 any sorries. Now one can update the database repeatedly using:
 
 `poetry run src/sorrydb/scripts/update_db.py --database-file mock_db.json`
+
+
+## Contributing
+
+See `CONTRIBUTING.md` for contribution guidelines.
