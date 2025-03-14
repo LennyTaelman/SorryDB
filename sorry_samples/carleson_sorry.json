@@ -1,0 +1,19 @@
+{
+    "remote_url": "https://github.com/fpvandoorn/carleson",
+    "sha": "4948e4de58968b2dad5de3b3aaf7f7014a4e8375",
+    "branch": "master",
+    "lean_version": "v4.18.0-rc1",
+    "goal": {
+        "type": "X : Type u_1\na : \u2115\nq : \u211d\nK : X \u2192 X \u2192 \u2102\n\u03c3\u2081 \u03c3\u2082 : X \u2192 \u2124\nF G : Set X\ninst\u271d\u00b9 : MetricSpace X\ninst\u271d : ProofData a q K \u03c3\u2081 \u03c3\u2082 F G\nz : X\nR t : \u211d\nhR : 0 < R\nC : \u211d\u22650\n\u03d5 : X \u2192 \u2102\nh\u03d5 : support \u03d5 \u2286 ball z R\nh2\u03d5 : HolderWith C nn\u03c4 \u03d5\nht : t \u2208 Ioc 0 1\n\u22a2 LipschitzWith (C8_0_1 \u2191a \u27e8t, \u22ef\u27e9) (holderApprox R t \u03d5)",
+        "hash": "502e91039e6d",
+        "parentType": "Prop"
+    },
+    "location": {
+        "startLine": 218,
+        "startColumn": 2,
+        "endLine": 218,
+        "endColumn": 7,
+        "file": "Carleson/HolderVanDerCorput.lean"
+    },
+    "uuid": "0c95f04c-10b7-4655-b849-634e1ca3af23"
+}

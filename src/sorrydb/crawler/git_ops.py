@@ -2,6 +2,7 @@ from pathlib import Path
 import shutil
 from git import Repo
 from typing import Optional, Dict
+from datetime import datetime, timezone
 import tempfile
 import subprocess
 import logging
@@ -248,13 +249,20 @@ def leaf_commits(remote_url: str) -> list[dict]:
                 parts = line.split()
                 branch = parts[0].replace('origin/', '')
                 sha = parts[1]
-                # Join the remaining parts as the date (might contain spaces)
-                date = " ".join(parts[2:])
-                logger.debug(f"Parsed branch: {branch}, sha: {sha}, date: {date}")
+                date_str = " ".join(parts[2:])
+                # Process date string
+                try:
+                    date = datetime.fromisoformat(date_str)
+                    date = date.astimezone(timezone.utc)
+                    date_iso = date.isoformat()
+                except ValueError:
+                    logger.warning(f"Failed to parse date: {date_str}")
+                    continue
+                logger.debug(f"Parsed branch: {branch}, sha: {sha}, date: {date_iso}")
                 commits.append({
                     'branch': branch,
                     'sha': sha,
-                    'date': date
+                    'date': date_iso
                 })
             
             if len(commits) == 0:

@@ -1,0 +1,19 @@
+{
+    "remote_url": "https://github.com/austinletson/sorryClientTestRepo",
+    "sha": "78202012bfe87f99660ba2fe5973eb1a8110ab64",
+    "branch": "branch1",
+    "lean_version": "v4.16.0",
+    "goal": {
+        "type": "\u22a2 1 + 1 = 2",
+        "hash": "c118ed11456b",
+        "parentType": "Prop"
+    },
+    "location": {
+        "startLine": 4,
+        "startColumn": 2,
+        "endLine": 4,
+        "endColumn": 7,
+        "file": "SorryClientTestRepo/BasicWithElabTactic.lean"
+    },
+    "uuid": "dac170af-c39d-46bc-92a8-71dc90301cd1"
+}
