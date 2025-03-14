@@ -24,6 +24,12 @@ def main():
         help="Directory to store Lean data (default: use temporary directory)",
     )
     parser.add_argument(
+        "--timeout",
+        type=int,
+        default=600,
+        help="Timeout in seconds for the lake build command (default: 600)",
+    )
+    parser.add_argument(
         "--log-level",
         type=str,
         default="INFO",
@@ -53,7 +59,11 @@ def main():
 
     # Update the database
     try:
-        update_database(database_path=database_path, lean_data=lean_data)
+        update_database(
+            database_path=database_path, 
+            lean_data=lean_data,
+            timeout=args.timeout
+        )
         return 0
 
     except Exception as e:

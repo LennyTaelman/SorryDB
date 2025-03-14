@@ -16,6 +16,7 @@ def setup_repl(lean_data: Path, version_tag: str | None = None) -> Path:
         version_tag: Optional git tag to checkout. If None, uses latest version
     """
     # Create a directory name that includes the version tag
+    logger.info("Setting up REPL...")
     if version_tag is not None:
         sanitized_tag = version_tag.replace('.', '_').replace('-', '_')
         repl_dir = lean_data / f"repl_{sanitized_tag}"
@@ -24,14 +25,14 @@ def setup_repl(lean_data: Path, version_tag: str | None = None) -> Path:
         repl_dir = lean_data / "repl"
     
     if not repl_dir.exists():
-        logger.info(f"Cloning REPL repository into {repl_dir}...")
+        logger.debug(f"Cloning REPL repository into {repl_dir}...")
         repo = Repo.clone_from(
             "https://github.com/leanprover-community/repl",
             repl_dir
         )
         
         if version_tag is not None:
-            logger.info(f"Checking out REPL at tag: {version_tag}")
+            logger.debug(f"Checking out REPL at tag: {version_tag}")
             repo.git.checkout(version_tag)
         
         logger.info("Building REPL...")
@@ -40,6 +41,7 @@ def setup_repl(lean_data: Path, version_tag: str | None = None) -> Path:
             logger.error("Failed to build REPL")
             raise Exception("Failed to build REPL")
     
+    # Check if the REPL binary exists
     repl_binary = repl_dir / ".lake" / "build" / "bin" / "repl"
     if not repl_binary.exists():
         logger.error("REPL binary not found at %s", repl_binary)
@@ -47,7 +49,7 @@ def setup_repl(lean_data: Path, version_tag: str | None = None) -> Path:
     
     # Make binary executable
     repl_binary.chmod(0o755)
-    logger.info("REPL binary ready at %s", repl_binary)
+    logger.info("REPL binary for version %s ready at %s", version_tag, repl_binary)
     
     return repl_binary
 
@@ -61,7 +63,7 @@ class LeanRepl:
             repo_path: Path to the repository root (used as working directory)
             repl_binary: Path to the REPL executable
         """
-        logger.info("Starting REPL process...")
+        logger.debug("Starting REPL process...")
         logger.debug("Working directory: %s", repo_path)
         logger.debug("REPL binary: %s", repl_binary.absolute())
         
@@ -140,7 +142,7 @@ class LeanRepl:
     def close(self):
         """Terminate the REPL process."""
         try:
-            logger.info("Terminating REPL process...")
+            logger.debug("Terminating REPL process...")
             self.process.terminate()
             self.process.wait(timeout=5)  # Wait up to 5 seconds for clean termination
         except subprocess.TimeoutExpired:
@@ -170,7 +172,7 @@ def get_goal_parent_type(repl: LeanRepl, proof_state_id: int) -> str | None:
     Returns:
         The parent type as a string, or None if failed
     """
-    logger.info("Getting goal parent type for proof state %d", proof_state_id)
+    logger.debug("Getting goal parent type for proof state %d", proof_state_id)
     
     # Original tactic:
     # run_tac (do let parentType ← Lean.Meta.inferType (← Lean.Elab.Tactic.getMainTarget); Lean.logInfo m!"Goal parent type: {parentType}")
@@ -186,7 +188,7 @@ def get_goal_parent_type(repl: LeanRepl, proof_state_id: int) -> str | None:
             if msg.get("severity") == "info" and "data" in msg:
                 if "Goal parent type:" in msg["data"]:
                     parent_type = msg["data"].split("Goal parent type:", 1)[1].strip()
-                    logger.info("Found goal parent type: %s", parent_type)
+                    logger.debug("Found goal parent type: %s", parent_type)
                     return parent_type
     
     logger.warning("Failed to get goal parent type for proof state %d", proof_state_id)

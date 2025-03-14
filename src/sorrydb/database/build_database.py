@@ -18,39 +18,83 @@ def hash_string(s: str) -> str:
     Returns first 12 characters of the hex digest."""
     return hashlib.sha256(s.encode()).hexdigest()[:12]
 
-def build_lean_project(repo_path: Path):
-    """Run lake commands to build the Lean project."""
-    # Check if already built
-    if (repo_path / "lake-manifest.json").exists() and (repo_path / ".lake" / "build").exists():
-        logger.info("Project appears to be already built, skipping build step")
-        return
+def build_lean_project(repo_path: Path, timeout: int = 600) -> list[Path] | None:
+    """Run lake commands to build the Lean project.
     
+    Args:
+        repo_path: Path to the repository root
+        timeout: Timeout in seconds for the lake build command (default: 600)
+    
+    Returns:
+        List of relative paths to Lean files containing sorries
+        None if build failed or could not read `lake-manifest.json`
+    """
+
     # Check if the project uses mathlib4
-    uses_mathlib4 = False
+    use_cache = False
     manifest_path = repo_path / "lake-manifest.json"
     if manifest_path.exists():
         try:
             manifest_content = manifest_path.read_text()
             if "https://github.com/leanprover-community/mathlib4" in manifest_content:
-                uses_mathlib4 = True
-                logger.info("Project uses mathlib4, will get build cache")
+                use_cache = True
+                logger.debug("Project uses mathlib4, will get build cache")
+            elif "\"name\": \"mathlib\"" in manifest_content:
+                use_cache = True
+                logger.debug("Mathlib4 branch, will get build cache")
         except Exception as e:
             logger.warning(f"Could not read lake-manifest.json: {e}")
+            return None
     
     # Only get build cache if the project uses mathlib4
-    if uses_mathlib4:
+    if use_cache:
         logger.info("Getting build cache...")
         result = subprocess.run(["lake", "exe", "cache", "get"], cwd=repo_path)
         if result.returncode != 0:
             logger.warning("lake exe cache get failed, continuing anyway")
     else:
-        logger.info("Project does not use mathlib4, skipping build cache step")
+        logger.debug("Project does not use mathlib4, skipping build cache step")
     
-    logger.info("Building project...")
-    result = subprocess.run(["lake", "build"], cwd=repo_path)
+    logger.info(f"Building project with timeout of {timeout} seconds...")
+    try:
+        # Run lake build with the specified timeout
+        result = subprocess.run(
+            ["lake", "build"], 
+            cwd=repo_path, 
+            capture_output=True, 
+            text=True, 
+            timeout=timeout
+        )
+    except subprocess.TimeoutExpired:
+        logger.warning(f"lake build timed out after {timeout} seconds")
+        return None
+
+    # Check for build failure
     if result.returncode != 0:
-        logger.error("lake build failed")
-        raise Exception("lake build failed")
+        logger.warning("lake build failed")
+        return None
+    
+    # Extract paths to files containing sorries from build output
+    # Sample output line: 
+    # warning: ././././SorryClientTestRepo/Basic.lean:4:8: declaration uses 'sorry'
+    sorry_files = []
+    if result.stdout:
+        for line in result.stdout.splitlines():
+            if "declaration uses 'sorry'" in line:
+                if line.startswith("warning: "):
+                    line = line[9:]
+                file_path_str = line.split(":", 1)[0]
+                file_path = Path(file_path_str)
+                full_path = repo_path / file_path                
+                if file_path not in sorry_files:
+                    if full_path.exists():
+                        logger.debug(f"Found sorry file: {file_path}")
+                        sorry_files.append(file_path)
+                    else:
+                        logger.warning(f"Could not find file: {full_path}")
+    
+    logger.info(f"Found {len(sorry_files)} files containing sorries from build output")
+    return sorry_files
 
 def find_sorries_in_file(relative_path: Path, repl: LeanRepl) -> list | None:
     """Find sorries in a Lean file using the REPL.
@@ -78,7 +122,7 @@ def find_sorries_in_file(relative_path: Path, repl: LeanRepl) -> list | None:
     if "sorries" not in output:
         logger.info("REPL output missing 'sorries' field")
         return None
-        
+    
     logger.info(f"REPL found {len(output['sorries'])} sorries")
     return output["sorries"]
 
@@ -88,7 +132,7 @@ def should_process_file(lean_file: Path) -> bool:
     that don't need to be processed by REPL.
     """
     text = lean_file.read_text()
-    return any(term in text for term in ["sorry", "admit", "proof_wanted"])
+    return any(term in text for term in ["sorry"])
 
 def process_lean_file(relative_path: Path, repo_path: Path, repl_binary: Path) -> list | None:
     """Process a Lean file to find sorries and their proof states.
@@ -117,6 +161,7 @@ def process_lean_file(relative_path: Path, repo_path: Path, repl_binary: Path) -
             
         # For each sorry, get its full proof state using the same REPL instance
         results = []
+        num_prop_sorries = 0
         for sorry in sorries:
             # Get the parent type of the goal
             parent_type = get_goal_parent_type(repl, sorry["proofState"])
@@ -139,18 +184,23 @@ def process_lean_file(relative_path: Path, repo_path: Path, repl_binary: Path) -
             # Add parent type if available
             if parent_type:
                 structured_sorry["goal"]["parentType"] = parent_type
+                if parent_type == "Prop":
+                    num_prop_sorries += 1
                 
             results.append(structured_sorry)
             
+        logger.info(f"Found {num_prop_sorries} Prop sorries in {relative_path}")
         return results
 
-def process_lean_repo(repo_path: Path, lean_data: Path, version_tag: str | None = None) -> list:
+def process_lean_repo(repo_path: Path, lean_data: Path, version_tag: str | None = None, sorry_files: list[Path] | None = None) -> list:
     """Process all Lean files in a repository using the REPL.
     
     Args:
         repo_path: Path to the repository root
         lean_data: Path to the lean data directory
-        
+        version_tag: Optional Lean version tag to use for REPL
+        sorry_files: List of paths to files containing sorries
+    
     Returns:
         List of sorries, each containing:
             - goal: dict with goal information
@@ -165,16 +215,25 @@ def process_lean_repo(repo_path: Path, lean_data: Path, version_tag: str | None 
                 - endColumn: int, ending column number
             - blame: dict, git blame information for the sorry line
     """
-    repl_binary = setup_repl(lean_data, version_tag)
     
     # Build list of files to process
-    lean_files = [(f.relative_to(repo_path), f) for f in repo_path.rglob("*.lean") 
+    if sorry_files is None:
+        logger.warning("No sorry files provided, processing lean files containing 'sorry' string")
+        lean_files = [f for f in repo_path.rglob("*.lean") 
                       if ".lake" not in f.parts and should_process_file(f)]
-    
+    else:
+        lean_files = sorry_files
+
+    if len(lean_files) == 0:
+        logger.info("No files with potential sorries found, returning empty list")
+        return []
+
     logger.info(f"Found {len(lean_files)} files containing potential sorries")
+
+    repl_binary = setup_repl(lean_data, version_tag)
     
     results = []
-    for rel_path, abs_path in lean_files:
+    for rel_path in lean_files:
         sorries = process_lean_file(rel_path, repo_path, repl_binary)
         if sorries:
             logger.info(f"Found {len(sorries)} sorries in {rel_path}")
@@ -228,50 +287,52 @@ def get_repo_lean_version(repo_path: Path) -> str:
         raise IOError(f"Error reading lean-toolchain file: {e}")
 
 
-
-def prepare_and_process_lean_repo(repo_url: str, branch: str | None = None, 
-                  lean_data: Optional[Path] = None):
+def prepare_and_process_lean_repo(repo_url: str, lean_data: Path | None = None, branch: str | None = None, timeout: int = 600) -> dict | None:
     """
     Comprehensive function that prepares a repository, builds a Lean project, 
     processes it to find sorries, and collects repository metadata.
     
     Args:
         repo_url: Git remote URL (HTTPS or SSH) of the repository to process
+        lean_data: Path in which to  create temporary directory for repository (default: system temp directory)
         branch: Optional branch to checkout (default: repository default branch)
-        lean_data: Path to the lean data directory (default: create temporary directory)
-        lean_version_tag: Optional Lean version tag to use for REPL
+        timeout: Timeout in seconds for the lake build command (default: 600)
         
     Returns:
         dict: A dictionary containing repository metadata and sorries information
+        None if failed to build or process the repository
     """
-    # Use a temporary directory by default if lean_data is not provided
-    if lean_data is None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            logger.info(f"Using temporary directory for lean data: {temp_dir}")
-            return _process_repo_with_lean_data(repo_url, branch, Path(temp_dir))
-    else:
-        # If lean_data is provided, make sure it exists
-        lean_data = Path(lean_data)
-        lean_data.mkdir(exist_ok=True)
-        logger.info(f"Using non-temporary directory for lean data: {lean_data}")
-        return _process_repo_with_lean_data(repo_url, branch, lean_data)
+    # Use a temporary directory to host the repository
+    with tempfile.TemporaryDirectory(dir=lean_data) as temp_dir:
+        logger.debug(f"Using temporary directory for lean data: {temp_dir}")
+        return _process_repo_with_lean_data(repo_url, branch, Path(temp_dir), timeout)
 
-def _process_repo_with_lean_data(repo_url: str, branch: str | None, lean_data: Path):
+def _process_repo_with_lean_data(repo_url: str, branch: str | None, lean_data: Path, timeout: int = 600) -> dict | None:
     """
     Helper function that does the actual repository processing with a given lean_data directory.
+    
+    Args:
+        repo_url: Git remote URL (HTTPS or SSH) of the repository to process
+        branch: Optional branch to checkout (default: repository default branch)
+        lean_data: Path to the lean data directory
+        timeout: Timeout in seconds for the lake build command (default: 600)
     """
-    logger.info(f"Processing repository: {repo_url}")
     if branch:
-        logger.info(f"Using branch: {branch}")
+        logger.info(f"Processing respository: {repo_url}, branch: {branch}")
+    else:
+        logger.info(f"Processing respository: {repo_url}")
     
     # Prepare the repository (clone/checkout)
     checkout_path = prepare_repository(repo_url, branch, None, lean_data)
     if not checkout_path:
-        logger.error(f"Failed to prepare repository: {repo_url}")
-        raise Exception(f"Failed to prepare repository: {repo_url}")
+        logger.warning(f"Failed to check out repository: {repo_url}, branch: {branch}")
+        return None
     
     # Build the Lean project
-    build_lean_project(checkout_path)
+    sorry_files = build_lean_project(checkout_path, timeout)
+    if sorry_files is None:
+        logger.warning(f"Failed to build Lean project: {repo_url}, branch: {branch}")
+        return None
 
     # Get Lean version from repo
     try:
@@ -282,7 +343,7 @@ def _process_repo_with_lean_data(repo_url: str, branch: str | None, lean_data: P
         lean_version = None
     
     # Process Lean files to find sorries
-    sorries = process_lean_repo(checkout_path, lean_data, lean_version)
+    sorries = process_lean_repo(checkout_path, lean_data, lean_version, sorry_files)
     
     # Get repository metadata and add lean_version
     metadata = get_repo_metadata(checkout_path)
@@ -294,7 +355,7 @@ def _process_repo_with_lean_data(repo_url: str, branch: str | None, lean_data: P
         "sorries": sorries,
     }
     
-    logger.info(f"Database build complete. Found {len(sorries)} sorries.")
+    logger.info(f"Found {len(sorries)} sorries in {repo_url}, branch: {branch}")
     return results
 
     
@@ -360,13 +421,14 @@ def load_database(database_path: Path) -> dict:
         raise ValueError(f"Invalid JSON in database file: {database_path}")
 
 
-def update_database(database_path: Path, lean_data: Optional[Path] = None):
+def update_database(database_path: Path, lean_data: Optional[Path] = None, timeout: int = 600):
     """
     Update a SorryDatabase by checking for changes in repositories and processing new commits.
     
     Args:
         database_path: Path to the database JSON file
         lean_data: Path to the lean data directory (default: create temporary directory)
+        timeout: Timeout in seconds for the lake build command (default: 600)
     """
 
     # Load the existing database
@@ -394,17 +456,21 @@ def update_database(database_path: Path, lean_data: Optional[Path] = None):
         all_commits = leaf_commits(remote_url)
         
         # Filter commits after last visited date
-        last_visited = datetime.datetime.fromisoformat(repo["last_time_visited"])
+        last_visited_str = repo["last_time_visited"]
+        last_visited = datetime.datetime.fromisoformat(last_visited_str)
+        logger.debug(f"Last visited datestring: {last_visited_str}")
         filtered_commits = []
-        
+            
         for commit in all_commits:
             # Parse the commit date
-            commit_date = datetime.datetime.fromisoformat(commit["date"])
+            commit_date_str = commit["date"]
+            commit_date = datetime.datetime.fromisoformat(commit_date_str)
+            logger.debug(f"Commit datestring: {commit_date_str}")
             
             # Only include commits that are newer than the last visited date
             if commit_date > last_visited:
                 filtered_commits.append(commit)
-                logger.info(f"Including new commit {commit['sha']} on branch {commit['branch']} from {commit_date.isoformat()}")
+                logger.debug(f"Including new commit {commit['sha']} on branch {commit['branch']} from {commit_date.isoformat()}")
             else:
                 logger.debug(f"Skipping old commit {commit['sha']} on branch {commit['branch']} from {commit_date.isoformat()}")
         
@@ -424,8 +490,12 @@ def update_database(database_path: Path, lean_data: Optional[Path] = None):
                 repo_results = prepare_and_process_lean_repo(
                     repo_url=remote_url,
                     lean_data=lean_data,
-                    branch=commit["branch"]
+                    branch=commit["branch"],
+                    timeout=timeout
                 )
+                if repo_results is None:
+                    logger.warning(f"Failed to process repository {remote_url}, skipping commit {commit['sha']}")
+                    continue
 
                 # Generate a UUID for each sorry
                 for sorry in repo_results["sorries"]:
@@ -447,7 +517,7 @@ def update_database(database_path: Path, lean_data: Optional[Path] = None):
                 logger.info(f"Added new commit {commit_entry['sha']} with {len(commit_entry['sorries'])} sorries")
                 
             except Exception as e:
-                logger.error(f"Error processing repository {remote_url}: {e}")
+                logger.warning(f"Error processing repository {remote_url}: {e}")
                 logger.exception(e)
                 # Continue with next repository
                 continue

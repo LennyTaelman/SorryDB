@@ -1,6 +1,7 @@
 from pathlib import Path
 import shutil
 from git import Repo
+from datetime import datetime, timezone
 from typing import Optional, Dict
 import tempfile
 import subprocess
@@ -212,7 +213,7 @@ def leaf_commits(remote_url: str) -> list[dict]:
             - date: ISO formatted date of the commit
     """
     try:
-        logger.info(f"Getting leaf commits for {remote_url}")
+        logger.debug(f"Getting leaf commits for {remote_url}")
         
         # Create a temporary directory for cloning
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -247,20 +248,32 @@ def leaf_commits(remote_url: str) -> list[dict]:
                 # Format: "origin/branch sha date"
                 parts = line.split()
                 branch = parts[0].replace('origin/', '')
+                date_str = " ".join(parts[2:])
                 sha = parts[1]
-                # Join the remaining parts as the date (might contain spaces)
-                date = " ".join(parts[2:])
-                logger.debug(f"Parsed branch: {branch}, sha: {sha}, date: {date}")
+                # Join the remaining parts as the date, and parse it
+                try:
+                    date = datetime.fromisoformat(date_str)
+                    # Convert to UTC
+                    if date.tzinfo is not None:
+                        date = date.astimezone(timezone.utc)
+                    else:
+                        # If no timezone info, assume UTC
+                        date = date.replace(tzinfo=timezone.utc)
+                    date_iso = date.isoformat()
+                except ValueError:
+                    logger.warning(f"Failed to parse date: {date_str}")
+                    continue
+                logger.debug(f"Parsed branch: {branch}, sha: {sha}, date: {date_iso}")
                 commits.append({
                     'branch': branch,
                     'sha': sha,
-                    'date': date
+                    'date': date_iso
                 })
             
             if len(commits) == 0:
                 logger.warning(f"No branches found for {remote_url}")
             else:
-                logger.info(f"Found {len(commits)} branches with commit dates in {remote_url}")
+                logger.debug(f"Found {len(commits)} branches with commit dates in {remote_url}")
             return commits
             
     except Exception as e:
