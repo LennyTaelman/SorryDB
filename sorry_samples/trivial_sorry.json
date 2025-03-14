@@ -1,0 +1,19 @@
+{
+    "remote_url": "https://github.com/austinletson/sorryClientTestRepoMath",
+    "sha": "e853cb7ab1cdb382ea12b3f11bcbe6bbfeb32d47",
+    "branch": "master",
+    "lean_version": "v4.17.0-rc1",
+    "goal": {
+        "type": "X : Type\ninst\u271d : TopologicalSpace X\n\u22a2 IsOpen Set.univ",
+        "hash": "503cbf170af1",
+        "parentType": "Prop"
+    },
+    "location": {
+        "startLine": 5,
+        "startColumn": 42,
+        "endLine": 5,
+        "endColumn": 47,
+        "file": "SorryClientTestRepoMath/WithImport.lean"
+    },
+    "uuid": "da8e7017-9929-458a-860d-daa0759ae3b1"
+}
