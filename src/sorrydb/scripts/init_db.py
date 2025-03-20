@@ -64,12 +64,16 @@ def main():
             starting_date = starting_date.replace(tzinfo=datetime.timezone.utc)
             logger.info(f"Using starting date: {starting_date.isoformat()}")
         except ValueError:
-            logger.error(f"Invalid date format: {args.starting_date}. Use YYYY-MM-DD format.")
+            logger.error(
+                f"Invalid date format: {args.starting_date}. Use YYYY-MM-DD format."
+            )
             return 1
     else:
         # Use current date and time if not provided (with UTC timezone)
         starting_date = datetime.datetime.now(datetime.timezone.utc)
-        logger.info(f"No starting date provided, using current date and time: {starting_date.isoformat()}")
+        logger.info(
+            f"No starting date provided, using current date and time: {starting_date.isoformat()}"
+        )
 
     with open(args.repos_file, "r") as f:
         repos_data = json.load(f)
@@ -81,7 +85,9 @@ def main():
     # Build the database
     try:
         init_database(
-            repo_list=repos_list, starting_date=starting_date, database_file= database_path
+            repo_list=repos_list,
+            starting_date=starting_date,
+            database_file=database_path,
         )
 
     except Exception as e:

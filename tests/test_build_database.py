@@ -1,7 +1,9 @@
 import json
 
-from sorrydb.database.build_database import (prepare_and_process_lean_repo,
-                                             update_database)
+from sorrydb.database.build_database import (
+    prepare_and_process_lean_repo,
+    update_database,
+)
 
 
 def test_prepare_and_process_lean_repo_with_mutiple_lean_versions():
@@ -72,6 +74,6 @@ def test_update_database(
     normalized_expected = normalize_sorrydb_for_comparison(expected_content)
 
     # Compare the normalized JSONs
-    assert (
-        normalized_tmp == normalized_expected
-    ), "The sorries data doesn't match the expected content"
+    assert normalized_tmp == normalized_expected, (
+        "The sorries data doesn't match the expected content"
+    )

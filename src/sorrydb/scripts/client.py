@@ -10,9 +10,7 @@ from sorrydb.repl_client.repl_client import process_sorry_json
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Reproduce a sorry with REPL."
-    )
+    parser = argparse.ArgumentParser(description="Reproduce a sorry with REPL.")
     parser.add_argument(
         "--sorry-file",
         type=str,
@@ -34,9 +32,7 @@ def main():
         help="Set the logging level (default: INFO)",
     )
     parser.add_argument(
-        "--log-file", 
-        type=str, 
-        help="Log file path (default: output to stdout)"
+        "--log-file", type=str, help="Log file path (default: output to stdout)"
     )
 
     args = parser.parse_args()
@@ -77,4 +73,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main()) 
+    sys.exit(main())

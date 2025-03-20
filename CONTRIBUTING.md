@@ -46,6 +46,34 @@ SorryDB uses [Poetry](https://python-poetry.org/) for dependency management and 
 
 For Docker-based development and deploying SorryDB, please refer to `DEPLOY.md` for detailed instructions.
 
+#### Code Quality Tools
+
+SorryDB uses pre-commit and ruff to maintain code quality:
+
+1. Install pre-commit hooks:
+   ```sh
+   pre-commit install
+   ```
+
+2. The hooks will run automatically on each commit, or manually with:
+   ```sh
+   pre-commit run --all-files
+   ```
+
+3. Ruff is configured in `pyproject.toml` and handles:
+   - Code formatting
+   - Import sorting
+   - Linting
+
+4. Run ruff manually:
+   ```sh
+   # Format code
+   ruff format 
+   
+   # Lint code
+   ruff check
+   ```
+
 ## Contributing Process
 
 ### 1. Find or Create an Issue
