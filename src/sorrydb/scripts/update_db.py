@@ -33,6 +33,12 @@ def main():
     parser.add_argument(
         "--log-file", type=str, help="Log file path (default: output to stdout)"
     )
+    parser.add_argument(
+        "--stats-file",
+        type=str,
+        default=None,
+        help="Path to write update statistics (JSON format)",
+    )
 
     args = parser.parse_args()
 
@@ -53,7 +59,7 @@ def main():
 
     # Update the database
     try:
-        update_database(database_path=database_path, lean_data=lean_data)
+        update_database(database_path=database_path, lean_data=lean_data, stats_file=args.stats_file)
         return 0
 
     except Exception as e:
