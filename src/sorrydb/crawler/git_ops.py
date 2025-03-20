@@ -73,59 +73,59 @@ def get_head_sha(remote_url: str, branch: str = None) -> str:
         )
         return repo.head.commit.hexsha
 
-def prepare_repository(remote_url: str, branch: str, head_sha: str, lean_data: Path) -> Optional[Path]:
-    """Clone repository at specific commit into lean-data directory.
+def prepare_repository(remote_url: str, branch: str, head_sha: Optional[str], lean_data: Path) -> Optional[Path]:
+    """Prepare a repository for analysis by cloning or updating it and checking out a specific commit.
     
     Args:
         remote_url: Git remote URL (HTTPS or SSH)
         branch: Branch name
-        head_sha: Commit SHA to checkout
+        head_sha: Commit SHA to checkout (if None, will use HEAD of branch)
         lean_data: Base directory for checkouts
     
     Returns:
         Path to checked out repository or None if failed
     """
+    # Create a directory name from the remote URL
+    repo_name = remote_url.rstrip('/').split('/')[-1]
+    if repo_name.endswith('.git'):
+        repo_name = repo_name[:-4]
+    
+    checkout_path = lean_data / repo_name
+    
+    # Get the head SHA if not provided
     if head_sha is None:
         head_sha = get_head_sha(remote_url, branch)
     
-    checkout_path = lean_data / head_sha
-    
-    # If directory exists and has correct commit checked out, we're done
-    if checkout_path.exists():
+    # If the repository hasn't already been cloned, clone it
+    if not checkout_path.exists():
         try:
+            logger.info(f"Cloning {remote_url} branch {branch}...")
+            repo = Repo.clone_from(
+                remote_url,
+                checkout_path
+            )
+
+        except Exception as e:
+            logger.error(f"Error cloning repository: {e}")
+            return None
+    else: # Repository already exists, open it and fetch latest changes
+        try:
+            logger.info(f"Repository already exists at {checkout_path}, fetching latest changes...")
             repo = Repo(checkout_path)
-            if repo.head.commit.hexsha == head_sha:
-                logger.info(f"Repository already exists at correct commit {head_sha}")
-                return checkout_path
-        except Exception:
-            pass
-    
-    # Clean up if directory exists but wrong commit
-    if checkout_path.exists():
-        shutil.rmtree(checkout_path)
-    
+            repo.git.fetch('--all')
+        except Exception as e:
+            logger.error(f"Error fetching latest changes: {e}")
+            return None
+
+    # Checkout specific commit
     try:
-        # Clone repository
-        logger.info(f"Cloning {remote_url} branch {branch}...")
-        repo = Repo.clone_from(
-            remote_url,
-            checkout_path,
-            branch=branch,
-            single_branch=True
-        )
-        
-        # Checkout specific commit
         logger.info(f"Checking out {head_sha}...")
         repo.git.checkout(head_sha)
-        
         return checkout_path
-        
     except Exception as e:
-        logger.error(f"Error preparing repository: {e}")
-        # Clean up on failure
-        if checkout_path.exists():
-            shutil.rmtree(checkout_path)
+        logger.error(f"Error checking out commit {head_sha}: {e}")
         return None
+
 
 def get_default_branch(repo_path: Path) -> str:
     """Get the default branch of the repository."""
