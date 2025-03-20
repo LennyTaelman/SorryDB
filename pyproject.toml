@@ -11,6 +11,7 @@ requires-python = ">=3.13"
 [tool.poetry.dependencies]
 gitpython = "*"
 requests = "^2.32.3"
+pydantic = "^2.10.6"
 
 
 [tool.poetry.group.dev.dependencies]
