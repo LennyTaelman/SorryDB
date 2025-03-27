@@ -48,8 +48,8 @@ RUN touch README.md
 RUN poetry install --without dev --no-root && rm -rf $POETRY_CACHE_DIR
 
 # Copy source files and repo_lists
-COPY src ./src
-COPY repo_lists ./repo_lists
+COPY sorrydb ./sorrydb
+COPY data/repo_lists .data/repo_lists
 
 # Install sorrydb
 RUN poetry install --without dev
