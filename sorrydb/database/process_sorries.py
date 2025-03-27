@@ -225,5 +225,5 @@ def prepare_and_process_lean_repo(
         "sorries": sorries,
     }
 
-    logger.info(f"Database build complete. Found {len(sorries)} sorries.")
+    logger.info(f"Finished processing {repo_url}. Found {len(sorries)} sorries.")
     return results
