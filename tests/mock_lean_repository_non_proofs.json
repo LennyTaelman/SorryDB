@@ -1,0 +1,52 @@
+[
+  {
+    "location": {
+      "file": "MockLeanRepository/triple.lean",
+      "start_line": 3,
+      "start_column": 26,
+      "end_line": 3,
+      "end_column": 31
+    },
+    "proof": "sorry"
+  },
+  {
+    "location": {
+      "file": "MockLeanRepository/triple.lean",
+      "start_line": 5,
+      "start_column": 29,
+      "end_line": 5,
+      "end_column": 34
+    },
+    "proof": "sorry"
+  },
+  {
+    "location": {
+      "file": "MockLeanRepository/triple.lean",
+      "start_line": 7,
+      "start_column": 29,
+      "end_line": 7,
+      "end_column": 34
+    },
+    "proof": "sorry"
+  },
+  {
+    "location": {
+      "file": "MockLeanRepository/subdir/subdir.lean",
+      "start_line": 3,
+      "start_column": 30,
+      "end_line": 3,
+      "end_column": 35
+    },
+    "proof": "exact obvious"
+  },
+  {
+    "location": {
+      "file": "MockLeanRepository/no_by.lean",
+      "start_line": 3,
+      "start_column": 27,
+      "end_line": 3,
+      "end_column": 32
+    },
+    "proof": "by induction"
+  }
+]

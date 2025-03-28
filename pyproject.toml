@@ -5,7 +5,7 @@ description = "Build a continously updating database of sorry statments in publi
 authors = [{ name = "Your Name", email = "you@example.com" }]
 license = { text = "Apache License" }
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 
 
 [tool.poetry.dependencies]

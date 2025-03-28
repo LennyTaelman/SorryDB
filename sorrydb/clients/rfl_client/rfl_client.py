@@ -129,7 +129,17 @@ def _process_sorries_with_lean_data(
             new_proof_state_id, new_goals = result
             if len(new_goals) == 0:
                 logger.info("No goals left after rfl")
-                output.append("rfl")
+                # Verify that the proof is correct
+                if verify_sorry(
+                    checkout_path,
+                    sorry["repo"]["lean_version"],
+                    sorry["location"],
+                    "rfl",
+                ):
+                    output.append("rfl")
+                else:
+                    logger.warning("rfl proof failed verification")
+                    output.append(None)
             else:
                 logger.info(f"New goals after rfl: {new_goals}")
                 output.append(None)

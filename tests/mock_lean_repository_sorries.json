@@ -1,0 +1,112 @@
+[
+  {
+    "location": {
+      "file": "MockLeanRepository/same_line.lean",
+      "start_line": 10,
+      "start_column": 27,
+      "end_line": 10,
+      "end_column": 32
+    },
+    "goal": "n : Nat\n\u22a2 n \u2264 n",
+    "proof_state_id": 0
+  },
+  {
+    "location": {
+      "file": "MockLeanRepository/same_line.lean",
+      "start_line": 10,
+      "start_column": 38,
+      "end_line": 10,
+      "end_column": 43
+    },
+    "goal": "n : Nat\n\u22a2 0 \u2264 1",
+    "proof_state_id": 1
+  },
+  {
+    "location": {
+      "file": "MockLeanRepository/no_by.lean",
+      "start_line": 3,
+      "start_column": 27,
+      "end_line": 3,
+      "end_column": 32
+    },
+    "goal": "\u22a2 1 = 1",
+    "proof_state_id": 0
+  },
+  {
+    "location": {
+      "file": "MockLeanRepository/multiline_triple.lean",
+      "start_line": 9,
+      "start_column": 48,
+      "end_line": 9,
+      "end_column": 53
+    },
+    "goal": "n : Nat\n\u22a2 n + 1 = 1 + n + 0",
+    "proof_state_id": 0
+  },
+  {
+    "location": {
+      "file": "MockLeanRepository/multiline_triple.lean",
+      "start_line": 11,
+      "start_column": 51,
+      "end_line": 11,
+      "end_column": 56
+    },
+    "goal": "n : Nat\n\u22a2 n + 1 = 1 + n + 0",
+    "proof_state_id": 1
+  },
+  {
+    "location": {
+      "file": "MockLeanRepository/multiline_triple.lean",
+      "start_line": 13,
+      "start_column": 51,
+      "end_line": 13,
+      "end_column": 56
+    },
+    "goal": "n : Nat\n\u22a2 n + 1 = 1 + n + 0",
+    "proof_state_id": 2
+  },
+  {
+    "location": {
+      "file": "MockLeanRepository/triple.lean",
+      "start_line": 3,
+      "start_column": 26,
+      "end_line": 3,
+      "end_column": 31
+    },
+    "goal": "\u22a2 1 = 1",
+    "proof_state_id": 0
+  },
+  {
+    "location": {
+      "file": "MockLeanRepository/triple.lean",
+      "start_line": 5,
+      "start_column": 29,
+      "end_line": 5,
+      "end_column": 34
+    },
+    "goal": "\u22a2 1 = 1",
+    "proof_state_id": 1
+  },
+  {
+    "location": {
+      "file": "MockLeanRepository/triple.lean",
+      "start_line": 7,
+      "start_column": 29,
+      "end_line": 7,
+      "end_column": 34
+    },
+    "goal": "\u22a2 1 = 1",
+    "proof_state_id": 2
+  },
+  {
+    "location": {
+      "file": "MockLeanRepository/subdir/subdir.lean",
+      "start_line": 3,
+      "start_column": 30,
+      "end_line": 3,
+      "end_column": 35
+    },
+    "goal": "\u22a2 1 = 1",
+    "proof_state_id": 0
+  }
+]

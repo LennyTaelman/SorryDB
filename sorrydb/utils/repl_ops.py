@@ -195,12 +195,13 @@ class LeanRepl:
         if "messages" in response:
             for m in response["messages"]:
                 if m.get("severity") == "error":
-                    logger.warning("REPL returned error: {m['data']}")
+                    logger.warning(f"REPL returned error: {m['data']}")
                     return None
 
+        # it seems REPL does not include "sorries" field if there are no sorries
         if "sorries" not in response:
             logger.info("REPL output missing 'sorries' field")
-            return None
+            return []
 
         output = []
         for sorry in response["sorries"]:

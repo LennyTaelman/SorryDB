@@ -1,7 +1,7 @@
 import datetime
 import unittest.mock as mock
 
-from sorrydb.utils.git_ops import leaf_commits, remote_heads, remote_heads_hash
+from utils.git_ops import leaf_commits, remote_heads, remote_heads_hash
 
 
 def test_remote_heads():
