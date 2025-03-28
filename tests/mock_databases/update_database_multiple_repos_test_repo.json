@@ -2,8 +2,13 @@
   "repos": [
     {
       "remote_url": "https://github.com/austinletson/sorryClientTestRepo",
-      "last_time_visited": "2025-03-27T22:11:41.648320+00:00",
+      "last_time_visited": "2025-03-27T22:13:42.598372+00:00",
       "remote_heads_hash": "24f2d32ed5ed"
+    },
+    {
+      "remote_url": "https://github.com/austinletson/sorryClientTestRepoMath",
+      "last_time_visited": "2025-03-27T22:13:54.714486+00:00",
+      "remote_heads_hash": "0ce0e188aa33"
     }
   ],
   "sorries": [
@@ -28,7 +33,7 @@
       "metadata": {
         "blame_email_hash": "1679c78ca90b",
         "blame_date": "2025-02-27T16:30:37+01:00",
-        "inclusion_date": "2025-03-27T22:11:41.819052+00:00"
+        "inclusion_date": "2025-03-27T22:13:42.762667+00:00"
       },
       "id": "ac1aa76a821e979d8c014a717c2b90e1cc6a047630daa5390debd211cc6e351f"
     },
@@ -53,7 +58,7 @@
       "metadata": {
         "blame_email_hash": "9fe2851ae6a7",
         "blame_date": "2025-03-07T07:00:23-05:00",
-        "inclusion_date": "2025-03-27T22:11:41.819052+00:00"
+        "inclusion_date": "2025-03-27T22:13:42.762667+00:00"
       },
       "id": "b61070c2c34fc47ef36e62c033b32fb98dba72b908fd6fb10e31f1dbc0ed213c"
     },
@@ -78,7 +83,7 @@
       "metadata": {
         "blame_email_hash": "9fe2851ae6a7",
         "blame_date": "2025-03-11T18:28:42-04:00",
-        "inclusion_date": "2025-03-27T22:11:41.819052+00:00"
+        "inclusion_date": "2025-03-27T22:13:42.762667+00:00"
       },
       "id": "d4a88c0c3b53771bbdf3dea76fa3b1e3042921b49c1839060f9b3a9807a3cb9c"
     },
@@ -103,7 +108,7 @@
       "metadata": {
         "blame_email_hash": "1679c78ca90b",
         "blame_date": "2025-02-27T16:30:37+01:00",
-        "inclusion_date": "2025-03-27T22:11:50.987294+00:00"
+        "inclusion_date": "2025-03-27T22:13:52.041823+00:00"
       },
       "id": "e9d8b1e0c270ec57c1f01ff49409a2508013d40f65d7e16f1607d4c755b9ba30"
     },
@@ -128,7 +133,7 @@
       "metadata": {
         "blame_email_hash": "9fe2851ae6a7",
         "blame_date": "2025-03-07T07:00:23-05:00",
-        "inclusion_date": "2025-03-27T22:11:50.987294+00:00"
+        "inclusion_date": "2025-03-27T22:13:52.041823+00:00"
       },
       "id": "cd15990c6d05bf34de924e000f393ec5c9a5f5c7d93fb2a23802469c2801f89a"
     },
@@ -153,7 +158,7 @@
       "metadata": {
         "blame_email_hash": "9fe2851ae6a7",
         "blame_date": "2025-03-13T06:55:53-04:00",
-        "inclusion_date": "2025-03-27T22:11:50.987294+00:00"
+        "inclusion_date": "2025-03-27T22:13:52.041823+00:00"
       },
       "id": "32f0c31873bbf531a3e8b8b2bf6dd73f7e70c0525367f93a026ff36a95d5d49b"
     },
@@ -178,9 +183,84 @@
       "metadata": {
         "blame_email_hash": "9fe2851ae6a7",
         "blame_date": "2025-03-13T06:58:58-04:00",
-        "inclusion_date": "2025-03-27T22:11:50.987294+00:00"
+        "inclusion_date": "2025-03-27T22:13:52.041823+00:00"
       },
       "id": "7fc435e0d6c0136e5b1fee565e6b68df8cf8bb62e5794aab53de3d6cb769a5b0"
+    },
+    {
+      "repo": {
+        "remote": "https://github.com/austinletson/sorryClientTestRepoMath",
+        "branch": "master",
+        "commit": "e853cb7ab1cdb382ea12b3f11bcbe6bbfeb32d47",
+        "lean_version": "v4.17.0-rc1"
+      },
+      "location": {
+        "start_line": 5,
+        "start_column": 42,
+        "end_line": 5,
+        "end_column": 47,
+        "file": "SorryClientTestRepoMath/WithImport.lean"
+      },
+      "debug_info": {
+        "goal": "X : Type\ninst\u271d : TopologicalSpace X\n\u22a2 IsOpen Set.univ",
+        "url": "https://github.com/austinletson/sorryClientTestRepoMath/blob/e853cb7ab1cdb382ea12b3f11bcbe6bbfeb32d47/SorryClientTestRepoMath/WithImport.lean#L5"
+      },
+      "metadata": {
+        "blame_email_hash": "1679c78ca90b",
+        "blame_date": "2025-02-25T16:49:40+01:00",
+        "inclusion_date": "2025-03-27T22:13:54.878119+00:00"
+      },
+      "id": "075382534c74af09ad1c9790738e01e24c6f342913b7efe9847a117f498557de"
+    },
+    {
+      "repo": {
+        "remote": "https://github.com/austinletson/sorryClientTestRepoMath",
+        "branch": "some_branch",
+        "commit": "c1c539f7432bafccd8eaf55f363eaad4e0b92374",
+        "lean_version": "v4.17.0-rc1"
+      },
+      "location": {
+        "start_line": 5,
+        "start_column": 42,
+        "end_line": 5,
+        "end_column": 47,
+        "file": "SorryClientTestRepoMath/WithImport.lean"
+      },
+      "debug_info": {
+        "goal": "X : Type\ninst\u271d : TopologicalSpace X\n\u22a2 IsOpen Set.univ",
+        "url": "https://github.com/austinletson/sorryClientTestRepoMath/blob/c1c539f7432bafccd8eaf55f363eaad4e0b92374/SorryClientTestRepoMath/WithImport.lean#L5"
+      },
+      "metadata": {
+        "blame_email_hash": "1679c78ca90b",
+        "blame_date": "2025-02-25T16:49:40+01:00",
+        "inclusion_date": "2025-03-27T22:15:37.775456+00:00"
+      },
+      "id": "78dd31b8010d82734ab1a4607db3ee00ee31b444606079599339e1666e53d50b"
+    },
+    {
+      "repo": {
+        "remote": "https://github.com/austinletson/sorryClientTestRepoMath",
+        "branch": "some_branch",
+        "commit": "c1c539f7432bafccd8eaf55f363eaad4e0b92374",
+        "lean_version": "v4.17.0-rc1"
+      },
+      "location": {
+        "start_line": 7,
+        "start_column": 45,
+        "end_line": 7,
+        "end_column": 50,
+        "file": "SorryClientTestRepoMath/WithImport.lean"
+      },
+      "debug_info": {
+        "goal": "X : Type\ninst\u271d : TopologicalSpace X\n\u22a2 IsClosed Set.univ",
+        "url": "https://github.com/austinletson/sorryClientTestRepoMath/blob/c1c539f7432bafccd8eaf55f363eaad4e0b92374/SorryClientTestRepoMath/WithImport.lean#L7"
+      },
+      "metadata": {
+        "blame_email_hash": "24b3fae77efa",
+        "blame_date": "2025-03-07T20:58:44+01:00",
+        "inclusion_date": "2025-03-27T22:15:37.775456+00:00"
+      },
+      "id": "e15435bd01ddd9ee04d31a1c72ea9acbefb78d542b1bf53991b8c93abba49943"
     }
   ]
 }

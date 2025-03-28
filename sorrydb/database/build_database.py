@@ -1,14 +1,13 @@
 import datetime
-import hashlib
 import json
 import logging
-import subprocess
 import tempfile
-import uuid
+from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
 
 from sorrydb.database.process_sorries import prepare_and_process_lean_repo
+from sorrydb.database.sorry import DebugInfo, Location, Metadata, RepoInfo, Sorry
 from sorrydb.utils.git_ops import leaf_commits, remote_heads_hash
 
 # Create a module-level logger
@@ -28,7 +27,7 @@ def init_database(
     """
     logger.info(f"Initializing database from {len(repo_list)} repositories")
     # Create the initial database structure
-    database = {"repos": []}
+    database = {"repos": [], "sorries": []}
 
     # Format the datetime as ISO 8601 string for JSON storage
     formatted_date = starting_date.isoformat()
@@ -39,7 +38,6 @@ def init_database(
             "remote_url": repo_url,
             "last_time_visited": formatted_date,
             "remote_heads_hash": None,
-            "commits": [],
         }
         database["repos"].append(repo_entry)
 
@@ -96,64 +94,185 @@ def compute_new_sorries_stats(sorries) -> dict:
     return {"count": len(sorries)}
 
 
-def process_new_commits(database, repo_index, commits, remote_url, lean_data):
+def process_new_commits(commits, remote_url, lean_data) -> tuple[list[Sorry], dict]:
     """
-    Process a list of new commits for a repository and add them to the database.
+    Process a list of new commits for a repository, building a Sorry object for each new sorry in the repo
 
     Args:
-        database: The database dictionary to update
-        repo_index: Index of the repository in the database
+
         commits: List of commit dictionaries to process
         remote_url: URL of the repository
         lean_data: Path to the lean data directory
     Returns:
-        new_sorries_stats: A dict of stats about the new commits and sorries found,
-                          with commit hash as key and statistics as value
+        tuple: (list of new sorries, dict of statistics by commit)
     """
+
+    new_sorries = []
     new_sorries_stats = {}
+
     for commit in commits:
         logger.debug(f"processing commit on {remote_url}: {commit}")
         try:
-            # Record the time before processing the repo
-            time_visited = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            time_visited = datetime.datetime.now(datetime.timezone.utc)
 
-            # Process the repository to get sorries
             repo_results = prepare_and_process_lean_repo(
                 repo_url=remote_url, lean_data=lean_data, branch=commit["branch"]
             )
 
-            # Generate a UUID for each sorry
             for sorry in repo_results["sorries"]:
-                sorry["uuid"] = str(uuid.uuid4())
+                # Create dataclass instances for each component of the Sorry
+                repo_info = RepoInfo(
+                    remote=remote_url,
+                    branch=commit["branch"],
+                    commit=commit["sha"],
+                    lean_version=repo_results["metadata"].get("lean_version", ""),
+                )
 
-            # Create a new commit entry
-            commit_entry = {
-                "sha": repo_results["metadata"]["sha"],
-                "branch": commit["branch"],
-                "time_visited": time_visited,
-                "lean_version": repo_results["metadata"].get("lean_version"),
-                "sorries": repo_results["sorries"],
-            }
+                location = Location(
+                    start_line=sorry["location"]["start_line"],
+                    start_column=sorry["location"]["start_column"],
+                    end_line=sorry["location"]["end_line"],
+                    end_column=sorry["location"]["end_column"],
+                    file=sorry["location"]["file"],
+                )
 
-            # Compute statistics for this commit's sorries
+                debug_info = DebugInfo(
+                    goal=sorry["goal"],
+                    url=f"{remote_url}/blob/{commit['sha']}/{sorry['location']['file']}#L{sorry['location']['start_line']}",
+                )
+
+                blame_date = sorry["blame"]["date"]
+                if isinstance(blame_date, str):
+                    blame_date = datetime.datetime.fromisoformat(blame_date)
+
+                metadata = Metadata(
+                    blame_email_hash=sorry["blame"]["author_email_hash"],
+                    blame_date=blame_date,
+                    inclusion_date=time_visited,
+                )
+
+                # Sorry instance `id` field will be auto-generated
+                sorry_instance = Sorry(
+                    repo=repo_info,
+                    location=location,
+                    debug_info=debug_info,
+                    metadata=metadata,
+                )
+
+                new_sorries.append(sorry_instance)
+
             commit_stats = compute_new_sorries_stats(repo_results["sorries"])
 
-            # Add stats to the new_sorries_stats dictionary using commit SHA as key
-            new_sorries_stats[commit_entry["sha"]] = commit_stats
-
-            # Add the commit entry to the repository
-            database["repos"][repo_index]["commits"].append(commit_entry)
+            new_sorries_stats[commit["sha"]] = commit_stats
 
             logger.info(
-                f"Added new commit {commit_entry['sha']} with {commit_stats['count']} sorries"
+                f"Processed commit {commit['sha']} with {commit_stats['count']} sorries"
             )
 
         except Exception as e:
-            logger.error(f"Error processing repository {remote_url}: {e}")
+            logger.error(
+                f"Error processing commit {commit} on repository {remote_url}: {e}"
+            )
             logger.exception(e)
-            # Continue with next commit
-            continue
-    return new_sorries_stats
+            continue  # Continue with next commit
+
+    return new_sorries, new_sorries_stats
+
+
+def repo_has_updates(repo: dict) -> Optional[str]:
+    """
+    Check if a repository has updates by comparing remote heads hash.
+
+    Returns:
+        Optional[str]: The new remote heads hash if updates are available, None otherwise
+    """
+    remote_url = repo["remote_url"]
+    logger.info(f"Checking repository for new commits: {remote_url}")
+
+    current_hash = remote_heads_hash(remote_url)
+    if current_hash is None:
+        logger.warning(f"Could not get remote heads hash for {remote_url}, skipping")
+        return None
+
+    if current_hash == repo["remote_heads_hash"]:
+        logger.info(f"No changes detected for {remote_url}, skipping")
+        return None
+
+    logger.info(f"New commits detected for {remote_url}, processing...")
+    return current_hash
+
+
+def get_new_leaf_commits(repo: dict) -> list:
+    remote_url = repo["remote_url"]
+
+    all_commits = leaf_commits(remote_url)
+
+    last_visited = datetime.datetime.fromisoformat(repo["last_time_visited"])
+    new_leaf_commits = []
+
+    for commit in all_commits:
+        commit_date = datetime.datetime.fromisoformat(commit["date"])
+
+        if commit_date > last_visited:
+            new_leaf_commits.append(commit)
+            logger.info(
+                f"Including new commit {commit['sha']} on branch {commit['branch']} from {commit_date.isoformat()}"
+            )
+        else:
+            logger.debug(
+                f"Skipping old commit {commit['sha']} on branch {commit['branch']} from {commit_date.isoformat()}"
+            )
+
+    logger.info(
+        f"Filtered {len(all_commits)} commits to {len(new_leaf_commits)} new commits after {last_visited.isoformat()}"
+    )
+    return new_leaf_commits
+
+
+def find_new_sorries(repo, lean_data) -> tuple[list[Sorry], dict]:
+    """
+    Find new sorries in a repository since the last time it was visited.
+
+    Returns:
+        tuple: (list of new sorries, dict of statistics by commit)
+    """
+    # only look for new sorries if the repo has updates since the last update
+    new_remote_hash = repo_has_updates(repo)
+    if new_remote_hash is None:
+        return [], {}
+
+    # record the time before starting processing repo
+    time_before_processing_repo = datetime.datetime.now(
+        datetime.timezone.utc
+    ).isoformat()
+
+    new_leaf_commits = get_new_leaf_commits(repo)
+
+    if lean_data is None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            logger.info(f"Using temporary directory for lean data: {temp_dir}")
+            new_sorries, new_sorry_stats = process_new_commits(
+                new_leaf_commits, repo["remote_url"], Path(temp_dir)
+            )
+    else:
+        # If lean_data is provided, make sure it exists
+        lean_data = Path(lean_data)
+        lean_data.mkdir(exist_ok=True)
+        logger.info(f"Using non-temporary directory for lean data: {lean_data}")
+        new_sorries, new_sorry_stats = process_new_commits(
+            new_leaf_commits, repo["remote_url"], lean_data
+        )
+
+    # update repo with new time visited and remote hash
+    repo["last_time_visited"] = time_before_processing_repo
+    repo["remote_heads_hash"] = new_remote_hash
+
+    return new_sorries, new_sorry_stats
+
+
+def add_new_sorries_to_database(new_sorries: list[Sorry], database):
+    new_sorries_dict = map(asdict, new_sorries)
+    database["sorries"].extend(new_sorries_dict)
 
 
 def update_database(
@@ -177,89 +296,27 @@ def update_database(
     if not write_database_path:
         write_database_path = database_path
 
-    # Load the existing database
     database = load_database(database_path)
 
     update_database_stats = {}
 
-    # Iterate through repositories in the database
-    for repo_index, repo in enumerate(database["repos"]):
-        remote_url = repo["remote_url"]
-        logger.info(f"Checking repository for new commits: {remote_url}")
+    for repo in database["repos"]:
+        new_sorries, new_sorry_stats = find_new_sorries(repo, lean_data)
+        if new_sorries:
+            add_new_sorries_to_database(new_sorries, database)
 
-        # Get the current hash of remote heads
-        current_hash = remote_heads_hash(remote_url)
-        if current_hash is None:
-            logger.warning(
-                f"Could not get remote heads hash for {remote_url}, skipping"
-            )
-            continue
+        update_database_stats[repo["remote_url"]] = new_sorry_stats
 
-        # Check if the hash has changed
-        if current_hash == repo["remote_heads_hash"]:
-            logger.info(f"No changes detected for {remote_url}, skipping")
-            continue
-
-        logger.info(f"New commits detected for {remote_url}, processing...")
-
-        # Get all leaf commits
-        all_commits = leaf_commits(remote_url)
-
-        # Filter commits after last visited date
-        last_visited = datetime.datetime.fromisoformat(repo["last_time_visited"])
-        filtered_commits = []
-
-        for commit in all_commits:
-            # Parse the commit date
-            commit_date = datetime.datetime.fromisoformat(commit["date"])
-
-            # Only include commits that are newer than the last visited date
-            if commit_date > last_visited:
-                filtered_commits.append(commit)
-                logger.info(
-                    f"Including new commit {commit['sha']} on branch {commit['branch']} from {commit_date.isoformat()}"
-                )
-            else:
-                logger.debug(
-                    f"Skipping old commit {commit['sha']} on branch {commit['branch']} from {commit_date.isoformat()}"
-                )
-
-        logger.info(
-            f"Filtered {len(all_commits)} commits to {len(filtered_commits)} new commits after {last_visited.isoformat()}"
-        )
-
-        # Update the last_time_visited timestamp
-        current_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        database["repos"][repo_index]["last_time_visited"] = current_time
-
-        # Update the remote_heads_hash
-        database["repos"][repo_index]["remote_heads_hash"] = current_hash
-
-        if lean_data is None:
-            with tempfile.TemporaryDirectory() as temp_dir:
-                logger.info(f"Using temporary directory for lean data: {temp_dir}")
-                new_sorry_stats = process_new_commits(
-                    database, repo_index, filtered_commits, remote_url, Path(temp_dir)
-                )
-        else:
-            # If lean_data is provided, make sure it exists
-            lean_data = Path(lean_data)
-            lean_data.mkdir(exist_ok=True)
-            logger.info(f"Using non-temporary directory for lean data: {lean_data}")
-            new_sorry_stats = process_new_commits(
-                database, repo_index, filtered_commits, remote_url, lean_data
-            )
-
-        # add the repo's stats to the stats dict
-        update_database_stats[remote_url] = new_sorry_stats
-
-    # Write the updated database back to the file
     logger.info(f"Writing updated database to {write_database_path}")
     with open(write_database_path, "w") as f:
-        json.dump(database, f, indent=2)
+        json.dump(
+            database,
+            f,
+            indent=2,
+            default=Sorry.default_json_serialization,
+        )
     logger.info("Database update completed successfully")
 
-    # Write database statistics if file is provided
     if stats_file:
         stats_path = Path(stats_file)
         with open(stats_path, "w") as f:

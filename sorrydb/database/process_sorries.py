@@ -58,24 +58,27 @@ def process_lean_file(
 
         results = []
         for sorry in sorries:
+            # Don't include sorries that aren't of type "Prop"
+            parent_type = repl.get_goal_parent_type(sorry["proof_state_id"])
+            if parent_type != "Prop":
+                logger.debug(
+                    f"Skipping sorry {sorry['goal']} in {relative_path} not of type `Prop`"
+                )
+                continue
+
             # Structure the sorry information
             structured_sorry = {
-                "goal": {"type": sorry["goal"], "hash": hash_string(sorry["goal"])},
+                "goal": sorry["goal"],
                 "location": {
-                    "startLine": sorry["location"]["start_line"],
-                    "startColumn": sorry["location"]["start_column"],
-                    "endLine": sorry["location"]["end_line"],
-                    "endColumn": sorry["location"]["end_column"],
+                    "start_line": sorry["location"]["start_line"],
+                    "start_column": sorry["location"]["start_column"],
+                    "end_line": sorry["location"]["end_line"],
+                    "end_column": sorry["location"]["end_column"],
                 },
                 "blame": get_git_blame_info(
                     repo_path, relative_path, sorry["location"]["start_line"]
                 ),
             }
-
-            # Add parent type if available
-            parent_type = repl.get_goal_parent_type(sorry["proof_state_id"])
-            if parent_type:
-                structured_sorry["goal"]["parentType"] = parent_type
 
             results.append(structured_sorry)
 
