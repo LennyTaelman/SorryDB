@@ -3,7 +3,9 @@ import logging
 from pathlib import Path
 
 from sorrydb.utils.git_ops import (
+    get_changed_files,
     get_git_blame_info,
+    get_merge_base,
     get_repo_metadata,
     prepare_repository,
 )
@@ -29,6 +31,40 @@ def should_process_file(lean_file: Path) -> bool:
     return any(term in text for term in ["sorry"])
 
 
+def get_potential_sorry_files(
+    repo_path: Path,
+    is_mathlib: bool = False,
+) -> list[Path]:
+    """Get list of Lean files to process.
+
+    Args:
+        repo_path: Path to the repository root
+        is_mathlib: If True, only include files that differ from master branch
+                    (used for mathlib repository)
+
+    Returns:
+        List of relative paths for each Lean file to process
+    """
+    lean_files = list(repo_path.rglob("*.lean"))
+
+    if is_mathlib:
+        # For mathlib, we only want files that differ from both:
+        # 1. The merge-base (most recent common ancestor with master)
+        # 2. The current master HEAD
+        # Any file on master is guaranteed not to contain sorries.
+        merge_base = get_merge_base(repo_path, "origin/master")
+        diff_base = set(get_changed_files(repo_path, merge_base))
+        diff_head = set(get_changed_files(repo_path, "origin/master"))
+        changed = diff_base.intersection(diff_head)
+        lean_files = [f for f in lean_files if f.relative_to(repo_path) in changed]
+
+    return [
+        f.relative_to(repo_path)
+        for f in lean_files
+        if ".lake" not in f.parts and should_process_file(f)
+    ]
+
+
 def process_lean_file(relative_path: Path, repo_path: Path, repl_binary: Path) -> list:
     """Process a Lean file to find sorries and their proof states.
 
@@ -45,7 +81,6 @@ def process_lean_file(relative_path: Path, repo_path: Path, repl_binary: Path) -
                 - endLine: int, ending line number
                 - endColumn: int, ending column number
             - blame: dict, git blame information for the sorry line
-        Returns None if no sorries found
     """
 
     with LeanRepl(repo_path, repl_binary) as repl:
@@ -86,13 +121,18 @@ def process_lean_file(relative_path: Path, repo_path: Path, repl_binary: Path) -
 
 
 def process_lean_repo(
-    repo_path: Path, lean_data: Path, version_tag: str | None = None
+    repo_path: Path,
+    lean_data: Path,
+    version_tag: str | None = None,
+    is_mathlib: bool = False,
 ) -> list:
     """Process all Lean files in a repository using the REPL.
 
     Args:
         repo_path: Path to the repository root
         lean_data: Path to the lean data directory
+        version_tag: Optional version tag to use for REPL
+        is_mathlib: Whether this is the mathlib repository (affects file filtering)
 
     Returns:
         List of sorries, each containing:
@@ -108,19 +148,22 @@ def process_lean_repo(
                 - endColumn: int, ending column number
             - blame: dict, git blame information for the sorry line
     """
+    # Build list of files to process
+    potential_sorry_files = get_potential_sorry_files(repo_path, is_mathlib=is_mathlib)
+
+    logger.info(
+        f"Found {len(potential_sorry_files)} files containing potential sorries"
+    )
+
+    # No need to build the project if there are no files to process
+    if not potential_sorry_files:
+        return []
+
+    build_lean_project(repo_path)
     repl_binary = setup_repl(lean_data, version_tag)
 
-    # Build list of files to process
-    lean_files = [
-        (f.relative_to(repo_path), f)
-        for f in repo_path.rglob("*.lean")
-        if ".lake" not in f.parts and should_process_file(f)
-    ]
-
-    logger.info(f"Found {len(lean_files)} files containing potential sorries")
-
     results = []
-    for rel_path, abs_path in lean_files:
+    for rel_path in potential_sorry_files:
         try:
             sorries = process_lean_file(rel_path, repo_path, repl_binary)
             logger.info(f"Found {len(sorries)} sorries in {rel_path}")
@@ -202,9 +245,6 @@ def prepare_and_process_lean_repo(
         logger.error(f"Failed to prepare repository: {repo_url}")
         raise Exception(f"Failed to prepare repository: {repo_url}")
 
-    # Build the Lean project
-    build_lean_project(checkout_path)
-
     # Get Lean version from repo
     try:
         lean_version = get_repo_lean_version(checkout_path)
@@ -213,8 +253,13 @@ def prepare_and_process_lean_repo(
         logger.info("Continuing without specific Lean version")
         lean_version = None
 
+    # Check if this is mathlib
+    is_mathlib = repo_url == "https://github.com/leanprover-community/mathlib4"
+
     # Process Lean files to find sorries
-    sorries = process_lean_repo(checkout_path, lean_data, lean_version)
+    sorries = process_lean_repo(
+        checkout_path, lean_data, lean_version, is_mathlib=is_mathlib
+    )
 
     # Get repository metadata and add lean_version
     metadata = get_repo_metadata(checkout_path)
