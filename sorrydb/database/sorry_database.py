@@ -15,7 +15,7 @@ class JsonDatabase:
         self.data = None
         self.update_stats = defaultdict(
             lambda: {
-                "counts": defaultdict(lambda: {"count": 0, "count_new": 0}),
+                "counts": defaultdict(lambda: {"count": 0, "count_new_proof": 0}),
                 "new_leaf_commit": None,
                 "start_processing_time": None,
                 "end_processing_time": None,
@@ -101,7 +101,7 @@ class JsonDatabase:
         repo_stats = self.update_stats[repo_url]["counts"][commit_sha]
         repo_stats["count"] += 1
         if is_new_goal:
-            repo_stats["count_new"] += 1
+            repo_stats["count_new_proof"] += 1
 
     def write_database(self, write_database_path: Path):
         logger.info(f"Writing updated database to {write_database_path}")
