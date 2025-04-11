@@ -8,6 +8,37 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+LAKE_BUILD_TIMEOUT = 60 * 30  # 30 minutes in seconds
+
+
+class LakeTimeoutError(Exception):
+    """Exception raised when the lake build process exceeds the timeout."""
+
+    pass
+
+
+def lake_build_with_timeout(repo_path: Path):
+    """Run 'lake build' with a timeout.
+
+    Args:
+        repl_dir: Directory where the lake build command should run.
+        timeout: Timeout in seconds for the build process.
+
+    Raises:
+        LakeTimeoutException: If the build process exceeds the timeout.
+        Exception: If the build process fails for other reasons.
+    """
+    try:
+        subprocess.run(
+            ["lake", "build"], cwd=repo_path, timeout=LAKE_BUILD_TIMEOUT, check=True
+        )
+    except subprocess.TimeoutExpired as e:
+        raise LakeTimeoutError("Lake build process exceeded the timeout.") from e
+    except subprocess.CalledProcessError as e:
+        logger.error("Failed to build REPL")
+        raise Exception(f"Lake build process failed with return code {e.returncode}.")
+
+
 def build_lean_project(repo_path: Path):
     """
     Run lake commands to build the Lean project.
@@ -42,7 +73,4 @@ def build_lean_project(repo_path: Path):
         logger.info("Project does not use mathlib4, skipping build cache step")
 
     logger.info("Building project...")
-    result = subprocess.run(["lake", "build"], cwd=repo_path)
-    if result.returncode != 0:
-        logger.error("lake build failed")
-        raise Exception("lake build failed")
+    lake_build_with_timeout(repo_path)

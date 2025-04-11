@@ -2,7 +2,6 @@ import datetime
 import json
 import logging
 import tempfile
-from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
 
@@ -10,6 +9,7 @@ from sorrydb.database.process_sorries import prepare_and_process_lean_repo
 from sorrydb.database.sorry import DebugInfo, Location, Metadata, RepoInfo, Sorry
 from sorrydb.database.sorry_database import JsonDatabase
 from sorrydb.utils.git_ops import leaf_commits, remote_heads_hash
+from sorrydb.utils.lean_repo import LakeTimeoutError
 
 # Create a module-level logger
 logger = logging.getLogger(__name__)
@@ -81,9 +81,6 @@ def process_new_commits(commits, remote_url, lean_data, database: JsonDatabase):
         tuple: (list of new sorries, dict of statistics by commit)
     """
 
-    new_sorries = []
-    new_sorries_stats = {}
-
     for commit in commits:
         logger.debug(f"processing commit on {remote_url}: {commit}")
         try:
@@ -146,14 +143,16 @@ def process_new_commits(commits, remote_url, lean_data, database: JsonDatabase):
                 f"Processed commit {commit['sha']} with {commit_sorry_count} sorries"
             )
 
+        except LakeTimeoutError:
+            database.set_lake_timeout(remote_url, True)
+            logger.warning(f"Lake timeout on {remote_url}. Skipping further processing")
+            break  # if there is a Lake timeout skip processing the rest of the commits for this repo
         except Exception as e:
             logger.error(
                 f"Error processing commit {commit} on repository {remote_url}: {e}"
             )
             logger.exception(e)
             continue  # Continue with next commit
-
-    return new_sorries, new_sorries_stats
 
 
 def repo_has_updates(repo: dict) -> Optional[str]:
