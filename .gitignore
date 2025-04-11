@@ -5,6 +5,7 @@ lean_data
 src/lean_data
 src/lean_data.old
 output.json
+llm_proofs.json
 
 # logs
 *.log

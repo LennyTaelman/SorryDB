@@ -5,12 +5,17 @@ description = "Build a continously updating database of sorry statments in publi
 authors = [{ name = "Your Name", email = "you@example.com" }]
 license = { text = "Apache License" }
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<4.0"
 
 
 [tool.poetry.dependencies]
 gitpython = "*"
 requests = "^2.32.3"
+langchain = "^0.3.20"
+langchain-anthropic = "^0.3.10"
+dotenv = "^0.9.9"
+langchain-openai = "^0.3.8"
+langchain-google-genai = "^2.1.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -28,6 +33,7 @@ packages = [
 init_db = "sorrydb.cli.init_db:main"
 update_db = "sorrydb.cli.update_db:main"
 run_rfl_client = "sorrydb.cli.run_rfl_client:main"
+run_llm_client = "sorrydb.cli.run_llm_client:main"
 
 
 [build-system]
