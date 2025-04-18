@@ -6,7 +6,7 @@ import logging
 import sys
 from pathlib import Path
 
-from sorrydb.clients.rfl_client.rfl_client import process_sorry_json
+from sorrydb.clients.rfl_client.rfl_client import process_sorries_json
 
 
 def main():
@@ -16,6 +16,12 @@ def main():
         type=str,
         required=True,
         help="Path to the sorry JSON file",
+    )
+    parser.add_argument(
+        "--output-file",
+        type=str,
+        required=True,
+        help="Path to the output JSON file",
     )
     parser.add_argument(
         "--lean-data",
@@ -50,14 +56,13 @@ def main():
 
     # Convert file names arguments to Path
     sorry_file = Path(args.sorry_file)
+    output_file = Path(args.output_file)
     lean_data = Path(args.lean_data) if args.lean_data else None
 
     # Process the sorry JSON file
-    # Print the "rfl" proof if succesful.
     try:
         logger.info(f"Processing sorry file: {sorry_file}")
-        proofs = process_sorry_json(sorry_file, lean_data)
-        logger.info(f"Proofs: {proofs}")
+        process_sorries_json(sorry_file, output_file, lean_data)
         return 0
 
     except FileNotFoundError as e:

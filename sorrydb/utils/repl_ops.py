@@ -264,3 +264,31 @@ class LeanRepl:
 
         # If we don't find the goal parent type, raise an exception
         raise RuntimeError(f"REPL tactic did not return parent type")
+
+    def find_sorry_proof_state(self, location: dict) -> Tuple[int, str]:
+        """Find the proof state of a sorry.
+
+        Args:
+            location: Dict containing the sorry location information
+
+        Returns:
+            Tuple of (proof state ID, goal)
+
+        Raises:
+            ReplError: if REPL returns an error
+            ValueError: if sorry cannot be found at given location
+        """
+        sorries = self.read_file(location["file"])
+
+        # Find the sorry that matches the location
+        for sorry in sorries:
+            if (
+                sorry["location"]["start_line"] == location["start_line"]
+                and sorry["location"]["start_column"] == location["start_column"]
+                and sorry["location"]["end_line"] == location["end_line"]
+                and sorry["location"]["end_column"] == location["end_column"]
+            ):
+                logger.info(f"Found matching sorry at line {location['start_line']}")
+                return sorry["proof_state_id"], sorry["goal"]
+        logger.error("Could not find matching sorry")
+        raise ValueError(f"Could not find sorry at specified location: {location}")

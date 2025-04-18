@@ -10,6 +10,7 @@ from sorrydb.database.process_sorries import build_lean_project
 from sorrydb.utils.git_ops import prepare_repository
 from sorrydb.utils.lean_repo import build_lean_project
 from sorrydb.utils.repl_ops import LeanRepl, setup_repl
+from sorrydb.utils.verify import verify_proof
 
 # Create a module-level logger
 logger = logging.getLogger(__name__)
@@ -41,55 +42,73 @@ def load_sorry_json(json_path: Path) -> Dict:
         raise
 
 
-def find_sorry_proof_state(repl: LeanRepl, location: Dict) -> Tuple[int, str]:
-    """Find the proof state ID for a sorry in a Lean file.
+def save_proofs_json(output_path: Path, output: List[Dict]):
+    """Save the proofs to a JSON file.
 
     Args:
-        repl: An active REPL instance
-        location: Dict containing the sorry location information
+        output_path: Path to output JSON file
+        output: list of dicts with sorries and proofs
+    """
+    try:
+        with open(output_path, "w") as f:
+            json.dump(output, f, indent=4)
+    except Exception as e:
+        logger.error(f"Error saving proofs to {output_path}: {e}")
+        raise
+
+
+def try_rfl(checkout_path: Path, repl: LeanRepl, sorry: Dict) -> str | None:
+    """Try to apply rfl to a sorry.
+
+    Args:
+        repl: LeanRepl instance
+        sorry: Dict containing the sorry data
 
     Returns:
-        Tuple of (proof_state_id, goal_type)
-
-    Raises:
-        Exception: If the sorry cannot be found or verified
+        str if rfl was applied successfully and closes the goal, None otherwise
     """
-    sorries = repl.read_file(location["file"])
 
-    if sorries is None:
-        logger.error("REPL returned no output")
-        raise Exception("REPL returned no output")
+    # Locate sorry and obtain proof_state_id
+    proof_state_id, goal = repl.find_sorry_proof_state(sorry["location"])
+    logger.info(f"Found sorry with goal: {goal}")
 
-    logger.info(f"REPL found {len(sorries)} sorries in {location['file']}")
+    # Apply rfl to the proof_state_id
+    _, new_goals = repl.apply_tactic(proof_state_id, "rfl")
 
-    # Find the sorry that matches the location
-    for sorry in sorries:
-        if (
-            sorry["location"]["start_line"] == location["start_line"]
-            and sorry["location"]["start_column"] == location["start_column"]
-            and sorry["location"]["end_line"] == location["end_line"]
-            and sorry["location"]["end_column"] == location["end_column"]
-        ):
-            logger.info(f"Found matching sorry at line {location['start_line']}")
-            return sorry["proof_state_id"], sorry["goal"]
-    logger.error("Could not find matching sorry")
-    raise Exception(f"Could not find sorry at specified location: {location}")
+    # Verify that there are no goals left
+    if len(new_goals) > 0:
+        logger.info(f"New goals after rfl: {new_goals}")
+        return None
+    logger.info("No goals left after rfl")
+
+    # Verify that the proof typechecks
+    if verify_proof(
+        checkout_path,
+        sorry["repo"]["lean_version"],
+        sorry["location"],
+        "rfl",
+    ):
+        return "rfl"
+    else:
+        logger.info("Proof does not typecheck")
+        return None
 
 
-def _process_sorries_with_lean_data(
-    lean_data: Path,
-    sorry_data: Dict,
-) -> List[Optional[str]]:
-    """Helper function that does the actual sorry processing with a given lean_data directory.
+def process_sorries_with_lean_data(
+    lean_data: Path, sorry_data: List[Dict]
+) -> List[Dict]:
+    """Loop over list of sorries, prepare their repositories, and attempt to
+    prove them using rfl.
 
     Args:
         lean_data: path to store Lean data
-        sorry_data: dict containing one sorry from the database
+        sorry_data: list of sorry dicts
 
     Returns:
         list of proof strings or None (when no proof is found)
     """
     output = []
+    success_count = 0
     for sorry in sorry_data["sorries"]:
         # Prepare the repository (clone/checkout)
         checkout_path = prepare_repository(
@@ -107,59 +126,39 @@ def _process_sorries_with_lean_data(
 
         # Setup REPL
         repl_binary = setup_repl(lean_data, sorry["repo"]["lean_version"])
-        with LeanRepl(checkout_path, repl_binary) as repl:
-            # Locate sorry and obtain proof_state_id
-            try:
-                proof_state_id, goal = find_sorry_proof_state(
-                    repl,
-                    sorry["location"],
-                )
-                logger.info(f"Found sorry with goal: {goal}")
-            except Exception as e:
-                logger.warning(f"Error finding sorry proof state: {e}")
-                output.append(None)
-                continue
 
-            # Apply rfl to the proof_state_id
-            result = repl.apply_tactic(proof_state_id, "rfl")
-            if result is None:
-                logger.warning("rfl tactic failed")
-                output.append(None)
-                continue
-            new_proof_state_id, new_goals = result
-            if len(new_goals) == 0:
-                logger.info("No goals left after rfl")
-                # Verify that the proof is correct
-                if verify_sorry(
-                    checkout_path,
-                    sorry["repo"]["lean_version"],
-                    sorry["location"],
-                    "rfl",
-                ):
-                    output.append("rfl")
-                else:
-                    logger.warning("rfl proof failed verification")
-                    output.append(None)
-            else:
-                logger.info(f"New goals after rfl: {new_goals}")
-                output.append(None)
+        # Try to apply rfl to the sorry
+        proof = None
+        try:
+            with LeanRepl(checkout_path, repl_binary) as repl:
+                proof = try_rfl(checkout_path, repl, sorry)
+        except Exception as e:
+            logger.warning(f"Error applying rfl: {e}")
+
+        # If proof is not None, verify the proof
+        if proof is not None:
+            success_count += 1
+
+        # Add output dict
+        output.append(dict(sorry, proof=proof))
+
+    logger.info(f"Solved {success_count} out of {len(sorry_data['sorries'])} sorries")
     return output
 
 
-def process_sorry_json(
-    json_path: Path, lean_data_dir: Optional[Path] = None
-) -> List[Optional[str]]:
-    """Process a JSON with a list of sorries.
+def process_sorries_json(
+    json_sorry_path: Path, json_output_path: Path, lean_data_dir: Optional[Path] = None
+):
+    """Process a JSON with a list of sorries, outputs a JSON with sorries and proofs.
 
     Args:
-        json_path: Path to the sorry JSON file
-        lean_data_dir: Optional path to store Lean data (default: create temporary directory)
-
-    Returns:
-        Goal state after applying `rfl`
+        json_path: Path to the JSON file with sorries
+        json_output_path: Path to the JSON file with the output
+        lean_data_dir: Optional path to store Lean data (default: create
+        temporary directory)
     """
     # Load the sorry JSON
-    sorry_data = load_sorry_json(json_path)
+    sorry_data = load_sorry_json(json_sorry_path)
 
     # Use a temporary directory for lean data if not provided
     if lean_data_dir is None:
@@ -167,7 +166,7 @@ def process_sorry_json(
             lean_data = Path(temp_dir) / "lean_data"
             lean_data.mkdir(exist_ok=True)
             # Process the sorry and return the actual goal
-            return _process_sorries_with_lean_data(
+            output = process_sorries_with_lean_data(
                 lean_data,
                 sorry_data,
             )
@@ -175,7 +174,10 @@ def process_sorry_json(
         lean_data = Path(lean_data_dir)
         lean_data.mkdir(exist_ok=True, parents=True)
         # Process the sorry and return the actual goal
-        return _process_sorries_with_lean_data(
+        output = process_sorries_with_lean_data(
             lean_data,
             sorry_data,
         )
+
+    # Save the proofs to a JSON file
+    save_proofs_json(json_output_path, output)
