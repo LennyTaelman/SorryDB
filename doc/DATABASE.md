@@ -1,10 +1,19 @@
 # Database format
 
-The SorryDB database tracks sorry statements from public Lean 4 repositories. The database consists of two JSON files: one containing the actual sorry statements and another tracking repositories to crawl.
+The SorryDB database tracks sorry statements from public Lean 4 repositories.
+The database consists of a JSON file with as format
+
+```json
+{
+  "repos": [...]
+  "sorries": [...]
+}
+```
+Below we describe the contents of the two entries.
 
 ## List of sorries
 
-The main content of the database is a JSON containing the list of sorries. Each sorry has the following format:
+The `sorries` field contains a list of sorry record. Each record has the following format:
 
 ```json
 {
@@ -15,11 +24,11 @@ The main content of the database is a JSON containing the list of sorries. Each 
     "lean_version": "v4.18.0-rc1"
   },
   "location": {
+    "path": "FLT/GlobalLanglandsConjectures/GLzero.lean",
     "start_line": 127,
     "start_column": 19,
     "end_line": 127,
     "end_column": 24,
-    "file": "FLT/GlobalLanglandsConjectures/GLzero.lean"
   },
   "debug_info": {
       "goal": "z : \u2102\nn : \u2115\n\u03c1 : Weight n\nh\u03c1 : \u03c1.IsTrivial\n\u22a2 IsSmooth fun x => z",
@@ -61,7 +70,7 @@ Specifies the location of the sorried proof within the specific commit of the re
 
 ```shell
 # open the file containing the sorry in VS Code
-code <location.file>
+code <location.path>
 ```
 
 and navigating the cursor to `(location.start_line, location.start_column)`, one should see a goal
@@ -83,11 +92,15 @@ Contains various items for internal use by the database. `metadata.blame_date` i
 
 ### `id`
 
-Finally, we provide a unique ID to the sorry, built as a hash from the `repo` and `location` fields. We consider *any* change to *any* file in the repository as a change to *all* sorries in the repository (as a change elsewhere may affect definitions used in the statement, or lemmas available to the prover).
+Finally, we provide a unique ID to the sorry, built as a hash from the `repo`
+and `location` fields. This is a very fine-grained ID, as we consider *any*
+change to *any* file in the repository as affecting *all* sorries in the
+repository (a crucial definition may have changed the meaning of the statement,
+or a new lemma may have made the statement easier to prove).
 
 ## List of repositories
 
-This is a secondary JSON, which contains the repositories being tracked, and
+The `repos` field of the database contains the repositories being tracked, and
 helps decide when to revisit a repository for updates. It contains a list of
 records, each of the following form:
 

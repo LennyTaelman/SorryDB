@@ -1,0 +1,47 @@
+{
+    "documentation": "two sorries, solved by rfl and exact...",
+    "sorries": [
+        {
+            "repo": {
+                "remote": "https://github.com/austinletson/sorryClientTestRepo",
+                "branch": "branch1",
+                "commit": "78202012bfe87f99660ba2fe5973eb1a8110ab64",
+                "lean_version": "v4.16.0"
+            },
+            "location": {
+                "start_line": 4,
+                "start_column": 2,
+                "end_line": 4,
+                "end_column": 7,
+                "path": "SorryClientTestRepo/BasicWithElabTactic.lean"
+            },
+            "debug_info": {
+                "goal": "⊢ 1 + 1 = 2",
+                "url": "https://github.com/austinletson/sorryClientTestRepo/blob/78202012bfe87f99660ba2fe5973eb1a8110ab64/SorryClientTestRepo/BasicWithElabTactic.lean#L4"
+            },
+            "id": "000000000000",
+            "proof": "rfl"
+        },
+        {
+            "repo": {
+                "remote": "https://github.com/austinletson/sorryClientTestRepoMath",
+                "branch": "master",
+                "commit": "e853cb7ab1cdb382ea12b3f11bcbe6bbfeb32d47",
+                "lean_version": "v4.17.0-rc1"
+            },
+            "location": {
+                "start_line": 5,
+                "start_column": 42,
+                "end_line": 5,
+                "end_column": 47,
+                "path": "SorryClientTestRepoMath/WithImport.lean"
+            },
+            "debug_info": {
+                "goal": "X : Type\ninst✝ : TopologicalSpace X\n⊢ IsOpen Set.univ",
+                "url": "https://github.com/austinletson/sorryClientTestRepoMath/blob/e853cb7ab1cdb382ea12b3f11bcbe6bbfeb32d47/SorryClientTestRepoMath/WithImport.lean#L5"
+            },
+            "id": "000000000002",
+            "proof": "exact isOpen_univ"
+        }
+    ]
+}

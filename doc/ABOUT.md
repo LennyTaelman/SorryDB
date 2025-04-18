@@ -11,19 +11,26 @@ The key features of this system are
 3. A minimal barrier between competition performance and real-world adoption.
 4. An open design which allows users to add new or existing AI theorem provers to the competition with minimal engineering effort.
 
-This project was motivated by Jason Rute's talk [*The Last Mile*](https://www.youtube.com/watch?v=Yr8dzfVkeHg). It is much inspired by the [*miniCTX*](https://cmu-l3.github.io/minictx/) benchmark, the [*LeanAgent*](https://arxiv.org/abs/2410.06209) system, and the somewhat analoguous [*SWE-bench*](https://www.swebench.com/) for software engineering.
+This project was motivated by Jason Rute's talk [*The Last Mile*](https://www.youtube.com/watch?v=Yr8dzfVkeHg). It is much inspired by the [*miniCTX*](https://cmu-l3.github.io/minictx/) benchmark, the [*LeanAgent*](https://arxiv.org/abs/2410.06209) system, and the somewhat analogous [*SWE-bench*](https://www.swebench.com/) for software engineering.
 
 ## Using sorry statements from public repositories
 
 Mathematicians often collaborate on formal mathematics projects in Lean, hosting their work on GitHub. These works-in-progress frequently contain formally stated theorems with proofs deferred to later stages, marked by the `sorry` placeholder.
 
-Each day, up to 100 new sorry statements are added to public repositories. They vary wildly in subject area and difficulty. Some are major theorems (perhaps the statement of the final target of the formalization project), others are routine lemmas (such as easy consequences of results already somewhere in [mathlib](https://leanprover-community.github.io/mathlib-overview.html)), which the author has postponed filling in.
+Each day dozens of sorry statements are added to public repositories. They vary wildly in subject area and difficulty. Some are major theorems (perhaps the statement of the final target of the formalization project), others are routine lemmas (such as easy consequences of results already somewhere in [mathlib](https://leanprover-community.github.io/mathlib-overview.html)), which the author has postponed filling in.
 
 We propose to compare automated (formal) proof systems by continuously testing their performance in proving such sorry statements. Below is a description of the intended final product.
 
-## System description
+## Future system description
 
-We envision a setup consisting of a *database* of sorries, a *leaderboard* server serving sorries from the database, and competing *clients* implementing different theorem proving systems. Below we describe this in more detail.
+We envision a setup consisting of a *database* of sorries, a *leaderboard*
+server serving sorries from the database, and competing *clients* implementing
+different theorem proving systems. Below we describe this in more detail.
+
+
+![SorryDB and Leaderboard Ecosystem](future_ecosystem.png)
+
+
 
 ### The database
 
@@ -43,9 +50,12 @@ The *leaderboard server* manages the live competition by selecting recent open s
 
 Eventually, the server could also generate automated pull requests (with the permission of repository owners) to incorporate the generated proofs.
 
-### Client
+### Agents
 
-Clients poll the server for sorry statements, reproduce them locally, and attempt to prove them within the given time limit. Successful solutions are uploaded back to the server. We plan to provide sample client implementations using various Lean interaction tools to facilitate participation.
+Agents poll the server for sorry statements, reproduce them locally, and attempt
+to prove them within the given time limit. Successful solutions are uploaded
+back to the server. We plan to provide sample agent implementations using various Lean
+interaction tools to facilitate participation.
 
 ### Scoring
 
@@ -54,7 +64,3 @@ context due to widely varying problem difficulty, inclusion of potentially unsol
 statements, and asynchronous participation of competitors (which may join later, leave early, or experience downtime).
 
 Instead, we propose an ELO-like rating system that measures relative performance. Once a client polls the server they are committed to the sorry they get served. In particular, for every (sorry, client) pair there are three potential outcomes: succeed, fail, did-not-compete. Whenever one competitor succeeds, and another fails at the same problem, the rating of those competitors gets updated.
-
-## Current Status
-
-This project is currently in active development, and we welcome contributions, suggestions and comments. At the moment, we are building the SorryDB database, and aim to provide a continuously updating public database of reproducable sorry statements.

@@ -13,7 +13,7 @@
                 "start_column": 2,
                 "end_line": 4,
                 "end_column": 7,
-                "file": "SorryClientTestRepo/BasicWithElabTactic.lean"
+                "path": "SorryClientTestRepo/BasicWithElabTactic.lean"
             },
             "debug_info": {
                 "goal": "⊢ 1 + 1 = 2",
@@ -33,7 +33,7 @@
                 "start_column": 42,
                 "end_line": 5,
                 "end_column": 47,
-                "file": "SorryClientTestRepoMath/WithImport.lean"
+                "path": "SorryClientTestRepoMath/WithImport.lean"
             },
             "debug_info": {
                 "goal": "X : Type\ninst✝ : TopologicalSpace X\n⊢ IsOpen Set.univ",

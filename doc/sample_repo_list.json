@@ -1,14 +1,11 @@
 {
-    "documentation": "Mock repositories plus Carleson, for testing.",
+    "documentation": "Sample repository list, contains mock repositories for testing purposes.",
     "repos": [
         {
             "remote": "https://github.com/austinletson/sorryClientTestRepo"
         },
         {
             "remote": "https://github.com/austinletson/sorryClientTestRepoMath" 
-        },
-        {
-            "remote": "https://github.com/fpvandoorn/carleson"
         }
     ]
 }
