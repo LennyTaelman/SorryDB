@@ -49,8 +49,8 @@ DO NOT WRITE ANY COMMENTS OR EXPLANATIONS! Just write code!
 logger = logging.getLogger(__name__)
 
 
-class LLMClient:
-    """LLMClient sets up Lean project and REPL, then attempts to solve it using an LLM.
+class LLMAgent:
+    """LLMAgent sets up Lean project and REPL, then attempts to solve it using an LLM.
 
     Example model JSON:
     ```json

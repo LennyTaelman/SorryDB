@@ -4,39 +4,30 @@ import argparse
 import json
 import logging
 import sys
+from pathlib import Path
 
-from sorrydb.clients.llm_client.llm_client import LLMClient
+from sorrydb.agents.rfl_agent.rfl_agent import process_sorries_json
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Solve sorries using LLMClient")
-
+    parser = argparse.ArgumentParser(description="Reproduce a sorry with REPL.")
     parser.add_argument(
-        "--sorry-db",
+        "--sorry-file",
         type=str,
-        default="https://raw.githubusercontent.com/austinletson/sorry-db-data/refs/heads/master/sorry_database.json",
-        help="URL to the sorry database JSON file",
+        required=True,
+        help="Path to the sorry JSON file",
     )
-
     parser.add_argument(
-        "--out",
+        "--output-file",
         type=str,
-        default="llm_proofs.json",
-        help="Path to the output JSON file (default: llm_proofs.json)",
+        required=True,
+        help="Path to the output JSON file",
     )
-
     parser.add_argument(
-        "--model-json",
+        "--lean-data",
         type=str,
         default=None,
-        help="Path to the model config JSON file (default: None)",
-    )
-
-    parser.add_argument(
-        "--lean-dir",
-        type=str,
-        default="lean_data",
-        help="Directory to store Lean data (default: lean_data)",
+        help="Directory to store Lean data (default: use temporary directory)",
     )
 
     parser.add_argument(
@@ -46,7 +37,6 @@ def main():
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Set the logging level (default: INFO)",
     )
-
     parser.add_argument(
         "--log-file", type=str, help="Log file path (default: output to stdout)"
     )
@@ -57,21 +47,24 @@ def main():
     log_kwargs = {
         "level": getattr(logging, args.log_level),
         "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        "datefmt": "%Y-%m-%d %H:%M:%S",  # No ms
     }
-
     if args.log_file:
         log_kwargs["filename"] = args.log_file
-
     logging.basicConfig(**log_kwargs)
+
     logger = logging.getLogger(__name__)
 
-    # Process the sorry DB using the LLMClient
+    # Convert file names arguments to Path
+    sorry_file = Path(args.sorry_file)
+    output_file = Path(args.output_file)
+    lean_data = Path(args.lean_data) if args.lean_data else None
+
+    # Process the sorry JSON file
     try:
-        logger.info(f"Solving sorry db at {args.sorry_db} using LLMClient.")
-        client = LLMClient(args.model_json, args.lean_dir)
-        client.solve_sorry_db(args.sorry_db, args.out)
+        logger.info(f"Processing sorry file: {sorry_file}")
+        process_sorries_json(sorry_file, output_file, lean_data)
         return 0
+
     except FileNotFoundError as e:
         logger.error(f"File not found: {e}")
         return 1

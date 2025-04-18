@@ -1,7 +1,7 @@
-# LLM Client
+# LLM agent
 
-This client will attempt to proof each sorries in the SorryDB using a single-shot LLM call.
-It serves as an example implementation of a client for the `sorrydb` library.
+This agent will attempt to prove sorries in the SorryDB using a single-shot LLM call.
+It serves as an example implementation of an agent for the `sorrydb` library.
 
 ## Usage
 
@@ -14,10 +14,10 @@ GOOGLE_API_KEY=your-key
 OPENAI_API_KEY=your-key
 ```
 
-3. Run the client e.g.:
+3. Run the agent e.g.:
 ```
-poetry run run_llm_client
-poetry run run_llm_client --log-file llm_proof.log --sorry-db https://s.com/db.json --model-json path/to/model.json
+poetry run run_llm_agent
+poetry run run_llm_agent --log-file llm_proof.log --sorry-db https://s.com/db.json --model-json path/to/model.json
 ```
 
 ## Model JSON Format
